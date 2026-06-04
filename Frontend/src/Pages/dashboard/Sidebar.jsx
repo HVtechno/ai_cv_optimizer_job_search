@@ -14,7 +14,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, activePage, setAc
   const isPaid = plan === "pro" || plan === "enterprise";
 
   // Added "Settings" to the existing list.
-  const navItems = ["Dashboard", "Jobs", "Saved", "Analytics", "Settings"];
+  const navItems = ["Dashboard", "Settings"];
 
   return (
     <div className={`bg-gray-900 ${sidebarOpen ? "w-56" : "w-16"} transition-all flex flex-col justify-between`}>

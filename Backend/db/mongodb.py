@@ -1,6 +1,6 @@
 from pymongo import MongoClient
 from urllib.parse import quote_plus
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import os
 from dotenv import load_dotenv
 
@@ -31,6 +31,11 @@ class MongoDB:
             inst.job_embeddings    = inst.db["job_embeddings"]    # keyed by job_id
             inst.job_matches       = inst.db["job_matches"]       # keyed by resume_id
             inst.feedback          = inst.db["feedback"]          # user feedback entries
+            inst.visits            = inst.db["visits"]            # active-visitor presence sessions
+
+            # Auto-purge stale sessions after 24h, and one session per visitor id.
+            inst.visits.create_index("last_seen", expireAfterSeconds=86400)
+            inst.visits.create_index("vid", unique=True)
 
             cls._instance = inst
         return cls._instance
@@ -305,9 +310,46 @@ class MongoDB:
             "user_deleted":        bool(user_deleted),
         }
 
-    # ── Resume ────────────────────────────────────────────────────────────────
+    # ── Visitor presence tracking ──────────────────────────────────────────────
+    # A lightweight "who's online" counter. The frontend pings record_visit on
+    # page load and every ~60s while the tab is visible (consent-gated client
+    # side). Each visitor is keyed by a first-party "vid" cookie. "Active" means
+    # seen within a rolling window. The TTL index on last_seen auto-purges old
+    # sessions so this collection stays tiny.
 
-    def save_resume(self, doc: dict):
+    def record_visit(self, *, vid: str, ip: str, user_agent: str,
+                     path: str, email: str | None = None) -> None:
+        now = datetime.now(timezone.utc)
+        self.visits.update_one(
+            {"vid": vid},
+            {
+                "$set": {
+                    "ip":         ip,
+                    "user_agent": user_agent,
+                    "path":       path,
+                    "email":      email,     # None for anonymous visitors
+                    "last_seen":  now,
+                },
+                "$setOnInsert": {"first_seen": now},
+                "$inc":         {"hits": 1},
+            },
+            upsert=True,
+        )
+
+    def count_active_visitors(self, window_minutes: int = 5) -> dict:
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=window_minutes)
+        match  = {"last_seen": {"$gte": cutoff}}
+        total  = self.visits.count_documents(match)
+        ips    = len(self.visits.distinct("ip", match))
+        users  = len(self.visits.distinct("email", {**match, "email": {"$ne": None}}))
+        return {
+            "active_sessions": total,   # distinct browsers/tabs
+            "active_ips":      ips,     # distinct IP addresses
+            "logged_in_users": users,  # distinct logged-in emails
+            "window_minutes":  window_minutes,
+        }
+
+    # ── Resume ────────────────────────────────────────────────────────────────
         self.resumes.insert_one(doc)
 
     def get_resume(self, resume_id: str) -> dict | None:

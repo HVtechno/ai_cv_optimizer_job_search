@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from routes.resume import router as resume_router
 from routes.billing import router as billing_router   # NEW
+from routes.presence import router as presence_router  # NEW: visitor tracking
 from auth.auth import router as auth_router
 
 app = FastAPI(
@@ -27,6 +28,7 @@ app.add_middleware(
 app.include_router(resume_router)
 app.include_router(auth_router,    prefix="/auth")
 app.include_router(billing_router, prefix="/billing")   # NEW
+app.include_router(presence_router, prefix="/presence")  # NEW: visitor tracking
 # Note: the Stripe webhook lives at POST /billing/webhook. Stripe calls it
 # server-to-server (no browser), so CORS does not apply and it must stay
 # unauthenticated — it is verified by the Stripe signature instead.

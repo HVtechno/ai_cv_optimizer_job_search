@@ -17,6 +17,7 @@ export default function CookiePage() {
         <LU items={[
           "Google Analytics (_ga, _gid) — aggregated, anonymised page view and event tracking.",
           "Sentry session replay — anonymised error diagnostics (no resume content captured).",
+          "vid — a first-party identifier used to count how many visitors are active on the site at a given time. Stores your IP address and approximate session activity for live-visitor analytics. Set only with your consent.",
         ]} />
         <LP><strong style={{ color: "var(--text)" }}>Payment Cookies</strong> — Set by Stripe during checkout to prevent fraud.</LP>
         <LU items={["__stripe_mid, __stripe_sid — fraud prevention and checkout state."]} />
@@ -37,6 +38,7 @@ export default function CookiePage() {
         <LU items={[
           "Session cookies — deleted when you close your browser.",
           "velora_lang — 1 year.",
+          "vid (live-visitor analytics) — 30 days.",
           "Google Analytics — 2 years (standard GA4 retention).",
           "Stripe — 1 year.",
         ]} />

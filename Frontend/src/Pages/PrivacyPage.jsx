@@ -12,7 +12,7 @@ export default function PrivacyPage() {
         <LU items={[
           "Account data: name, email address, password (hashed), registration date.",
           "Resume data: the CV or resume you upload, extracted skills, keywords, and work history.",
-          "Usage data: pages visited, features used, timestamps, device type, IP address, browser.",
+          "Usage data: pages visited, features used, timestamps, device type, IP address, browser, and live-visitor activity (a short-lived first-party cookie used to count how many people are active on the site, set only with your consent).",
           "Job match data: job listings matched against your resume, ATS scores, match history.",
           "Payment data: billing address and payment method (processed securely by Stripe — we do not store card numbers).",
           "Communications: emails, support messages, and feedback you send us.",

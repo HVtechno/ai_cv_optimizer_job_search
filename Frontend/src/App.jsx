@@ -13,6 +13,7 @@ import CookiePage from "./Pages/CookiePage";
 import VerifyEmail from "./Pages/VerifyEmail";
 import ResetPassword from "./Pages/ResetPassword";
 import DowngradeNotice from "./components/Downgradenotice";
+import CookieConsent from "./components/CookieConsent";
 
 export default function App() {
   return (
@@ -36,6 +37,7 @@ export default function App() {
             }
           />
         </Routes>
+        <CookieConsent />
       </AuthProvider>
     </div>
   );
