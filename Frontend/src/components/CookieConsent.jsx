@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { startPresence, stopPresence } from "./presence";
+import { startPresence, stopPresence } from "./Presence";
 
 // Self-contained cookie consent banner.
 //
