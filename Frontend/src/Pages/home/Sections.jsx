@@ -298,12 +298,43 @@ export function FooterSection({ t, scrollTo, howRef, featuresRef, pricingRef, on
               <div>
                 <div style={{ fontSize: 10, fontWeight: 700, color: "var(--g1)", letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 12, fontFamily: "var(--font-body)" }}>Contact</div>
                 {[
-                  { label: "support@resuviq-ai.nl", href: "mailto:support@resuviq-ai.nl" },
-                  { label: "Amsterdam, The Netherlands", href: null },
-                ].map(({ label, href }) => (
-                  <div key={label} style={{ marginBottom: 8 }}>
+                  {
+                    label: "support@resuviq-ai.nl",
+                    href: "mailto:support@resuviq-ai.nl",
+                    external: false,
+                    icon: (
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                        <rect x="2" y="4" width="20" height="16" rx="2" />
+                        <path d="m22 7-10 5L2 7" />
+                      </svg>
+                    ),
+                  },
+                  {
+                    label: "Amsterdam, The Netherlands",
+                    href: null,
+                    external: false,
+                    icon: (
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0Z" />
+                        <circle cx="12" cy="10" r="3" />
+                      </svg>
+                    ),
+                  },
+                  {
+                    label: "LinkedIn",
+                    href: "https://www.linkedin.com/company/resuviq-ai",
+                    external: true,
+                    icon: (
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style={{ flexShrink: 0 }}>
+                        <path d="M20.45 20.45h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.34V9h3.42v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.07 2.07 0 1 1 0-4.14 2.07 2.07 0 0 1 0 4.14zM7.12 20.45H3.55V9h3.57v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.73v20.54C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.73V1.73C24 .77 23.2 0 22.22 0z" />
+                      </svg>
+                    ),
+                  },
+                ].map(({ label, href, external, icon }) => (
+                  <div key={label} style={{ marginBottom: 8, display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ color: "var(--g1)", display: "inline-flex" }}>{icon}</span>
                     {href
-                      ? <a href={href} className="footer-link">{label}</a>
+                      ? <a href={href} className="footer-link" {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}>{label}</a>
                       : <span style={{ fontSize: 12, color: "rgba(237,246,242,0.3)", fontFamily: "var(--font-body)" }}>{label}</span>}
                   </div>
                 ))}
