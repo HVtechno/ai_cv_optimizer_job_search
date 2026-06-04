@@ -36,7 +36,6 @@ export default function AuthModal({ show, onClose, t }) {
 
       const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
       const res = await fetch(`${API}/auth/${endpoint}`, {
-      /*const res = await fetch(`http://localhost:8000/auth/${endpoint}`, {*/
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -55,6 +54,13 @@ export default function AuthModal({ show, onClose, t }) {
         if (data.detail === "EMAIL_NOT_VERIFIED") {
           toast.info("Please verify your email. We just sent you a new link.");
           setEmailError("Email not verified — check your inbox for the link.");
+          return;
+        }
+        // Verification email couldn't be sent (mail server issue). The backend
+        // rolled back so no half-created account is left behind — user can retry.
+        if (data.detail === "EMAIL_SEND_FAILED") {
+          toast.error("We couldn't send the verification email. Please try again in a moment.");
+          setEmailError("Couldn't send verification email — please try again.");
           return;
         }
         toast.error(typeof data.detail === "string" ? data.detail : "Something went wrong");

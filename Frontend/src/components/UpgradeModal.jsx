@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { startCheckout } from "./billing";
+import { startCheckout } from "./Billing";
 
 /**
  * UpgradeModal — shown when a gated backend call returns the upgrade 403.

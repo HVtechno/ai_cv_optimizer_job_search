@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { submitFeedback, dismissFeedbackPrompt } from "./billing";
+import { submitFeedback, dismissFeedbackPrompt } from "./Billing";
 
 /**
  * FeedbackModal — 1-5 star rating + optional comment.

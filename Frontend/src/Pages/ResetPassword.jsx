@@ -40,7 +40,6 @@ export default function ResetPassword() {
       setSubmitting(true);
       const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
       const res = await fetch(`${API}/auth/reset-password`, {
-      /*const res = await fetch("http://localhost:8000/auth/reset-password", {*/
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, password }),

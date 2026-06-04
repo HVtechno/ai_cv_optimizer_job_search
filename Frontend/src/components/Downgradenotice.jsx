@@ -1,5 +1,5 @@
 import { useAuth } from "../context/AuthContext";
-import { startCheckout } from "./billing";
+import { startCheckout } from "./Billing";
 import { useState } from "react";
 
 /**

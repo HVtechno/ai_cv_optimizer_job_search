@@ -6,7 +6,7 @@ import DashCard from "../../components/DashCard";
 import VeloraLogo from "../../components/VeloraLogo";
 import { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
-import { startCheckout } from "../../components/billing";
+import { startCheckout } from "../../components/Billing";
 
 // Your sales inbox for Enterprise "Contact sales".
 const ENTERPRISE_EMAIL = "support@resuviq-ai.nl";

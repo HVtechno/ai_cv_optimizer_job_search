@@ -5,14 +5,14 @@ import "react-toastify/dist/ReactToastify.css";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 
-import Home from "./pages/Home";
-import Dashboard from "./pages/Dashboard";
-import PrivacyPage from "./pages/PrivacyPage";
-import TermsPage from "./pages/TermsPage";
-import CookiePage from "./pages/CookiePage";
-import VerifyEmail from "./pages/VerifyEmail";
-import ResetPassword from "./pages/ResetPassword";
-import DowngradeNotice from "./components/DowngradeNotice";
+import Home from "./Pages/Home";
+import Dashboard from "./Pages/Dashboard";
+import PrivacyPage from "./Pages/PrivacyPage";
+import TermsPage from "./Pages/TermsPage";
+import CookiePage from "./Pages/CookiePage";
+import VerifyEmail from "./Pages/VerifyEmail";
+import ResetPassword from "./Pages/ResetPassword";
+import DowngradeNotice from "./components/Downgradenotice";
 
 export default function App() {
   return (

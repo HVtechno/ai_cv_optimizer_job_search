@@ -4,8 +4,8 @@ import { useAuth } from "../../context/AuthContext";
 import {
   fetchSubscription, startCheckout, openBillingPortal,
   fetchUsage, deleteAccount,
-} from "../../components/billing";
-import FeedbackModal from "../../components/FeedbackModal";
+} from "../../components/Billing";
+import FeedbackModal from "../../components/Feedbackmodal";
 
 /**
  * SettingsPanel — the "Settings" page rendered inside Dashboard.
