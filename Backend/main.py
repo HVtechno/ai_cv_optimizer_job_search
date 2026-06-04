@@ -17,6 +17,7 @@ app.add_middleware(
         "http://localhost:3000",   # CRA dev
         "https://resuviq-ai.nl",       # production frontend
         "https://www.resuviq-ai.nl",   # production frontend (www)
+        "https://resuviq-frontend.onrender.com",
     ],
     allow_credentials=True,
     allow_methods=["*"],
