@@ -32,8 +32,6 @@ class MongoDB:
             inst.job_matches       = inst.db["job_matches"]       # keyed by resume_id
             inst.feedback          = inst.db["feedback"]          # user feedback entries
             inst.visits            = inst.db["visits"]            # active-visitor presence sessions
-
-            # Auto-purge stale sessions after 24h, and one session per visitor id.
             inst.visits.create_index("last_seen", expireAfterSeconds=86400)
             inst.visits.create_index("vid", unique=True)
 
@@ -311,12 +309,6 @@ class MongoDB:
         }
 
     # ── Visitor presence tracking ──────────────────────────────────────────────
-    # A lightweight "who's online" counter. The frontend pings record_visit on
-    # page load and every ~60s while the tab is visible (consent-gated client
-    # side). Each visitor is keyed by a first-party "vid" cookie. "Active" means
-    # seen within a rolling window. The TTL index on last_seen auto-purges old
-    # sessions so this collection stays tiny.
-
     def record_visit(self, *, vid: str, ip: str, user_agent: str,
                      path: str, email: str | None = None) -> None:
         now = datetime.now(timezone.utc)
@@ -327,7 +319,7 @@ class MongoDB:
                     "ip":         ip,
                     "user_agent": user_agent,
                     "path":       path,
-                    "email":      email,     # None for anonymous visitors
+                    "email":      email,
                     "last_seen":  now,
                 },
                 "$setOnInsert": {"first_seen": now},
@@ -343,13 +335,15 @@ class MongoDB:
         ips    = len(self.visits.distinct("ip", match))
         users  = len(self.visits.distinct("email", {**match, "email": {"$ne": None}}))
         return {
-            "active_sessions": total,   # distinct browsers/tabs
-            "active_ips":      ips,     # distinct IP addresses
-            "logged_in_users": users,  # distinct logged-in emails
+            "active_sessions": total,
+            "active_ips":      ips,
+            "logged_in_users": users,
             "window_minutes":  window_minutes,
         }
 
     # ── Resume ────────────────────────────────────────────────────────────────
+
+    def save_resume(self, doc: dict):
         self.resumes.insert_one(doc)
 
     def get_resume(self, resume_id: str) -> dict | None:

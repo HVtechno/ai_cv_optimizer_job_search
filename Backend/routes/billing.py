@@ -144,11 +144,19 @@ async def get_subscription(user: dict = Depends(get_current_user_doc)):
                     )
 
                 # Interval + amount from the subscription's price (first item).
+                # Access via item indexing (not .get) — calling .get on a Stripe
+                # StripeObject can raise AttributeError on some SDK versions.
                 try:
                     price = sub["items"]["data"][0]["price"]
-                    recurring = price.get("recurring") if hasattr(price, "get") else price["recurring"]
-                    interval = (recurring or {}).get("interval")            # "month" | "year"
-                    unit_amount = price.get("unit_amount") if hasattr(price, "get") else price["unit_amount"]
+                    try:
+                        recurring = price["recurring"]
+                    except (KeyError, TypeError):
+                        recurring = None
+                    interval = recurring["interval"] if recurring and "interval" in recurring else None
+                    try:
+                        unit_amount = price["unit_amount"]
+                    except (KeyError, TypeError):
+                        unit_amount = None
                     if unit_amount is not None:
                         amount_eur = round(unit_amount / 100)              # cents -> euros
                 except (KeyError, TypeError, IndexError):
@@ -329,6 +337,19 @@ async def create_checkout_session(
             client_reference_id=user["email"],
             metadata={"app_user_id": user["email"]},
             allow_promotion_codes=True,
+            # ── VAT / tax (Stripe Tax) ────────────────────────────────────────
+            # Stripe Tax computes the correct VAT per customer location. Our
+            # Prices are set to tax_behavior="inclusive" in the Stripe Dashboard,
+            # so the displayed price (e.g. €29) already contains VAT — Stripe
+            # back-calculates the VAT portion rather than adding it on top.
+            # NOTE: requires Stripe Tax to be ENABLED on the account, otherwise
+            # checkout-session creation fails.
+            automatic_tax={"enabled": True},
+            # Collect EU business VAT IDs so B2B customers get reverse-charge.
+            tax_id_collection={"enabled": True},
+            # Billing address is needed to determine the customer's VAT location.
+            billing_address_collection="required",
+            customer_update={"address": "auto", "name": "auto"},
         )
         return {"url": session.url}
     except stripe.error.StripeError as e:
