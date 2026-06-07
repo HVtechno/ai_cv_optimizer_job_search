@@ -70,8 +70,8 @@ export default function ResumeHeader({
           <div className="relative flex items-center justify-between">
             {/* Left — resume info */}
             <div className="flex items-center gap-4 w-full">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-400/20 to-cyan-400/20 border border-white/10 flex items-center justify-center text-lg font-bold">
-                PDF
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-400/20 to-cyan-400/20 border border-white/10 flex items-center justify-center text-lg font-bold uppercase">
+                {(activeResume.name?.split(".").pop() || "FILE").slice(0, 4)}
               </div>
               <div className="w-full">
                 <div className="cursor-pointer" onClick={() => setShowResumeSwitcher(prev => !prev)}>
