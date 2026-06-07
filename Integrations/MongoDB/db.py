@@ -134,3 +134,51 @@ class MongoDB:
         print(f"🗑️ Deleted {result.deleted_count} expired jobs")
 
         return result.deleted_count
+
+    # ------------------------
+    # GET JOBS WITH CHANGED DESCRIPTIONS
+    # ------------------------
+    def get_jobs_with_changed_descriptions(self, batch_size=500):
+        """
+        Returns already-embedded jobs whose current descriptionText hash
+        no longer matches their stored embedding_hash — i.e. the description
+        changed on LinkedIn since it was embedded.
+
+        Checks ALL embedded jobs (no limit). Hashing is done in Python
+        (Mongo can't hash), using only fields that already exist on
+        embedded documents. Jobs whose description is unchanged are NOT
+        returned, so they are never needlessly re-embedded.
+
+        Yields lists of full job documents in batches.
+        """
+        from embeddings.embedding_service import hash_text, MAX_CHARS
+
+        candidates = self.collection.find(
+            {
+                "descriptionText": {"$exists": True, "$ne": ""},
+                "embedding_created": True,
+                "embedding_hash": {"$exists": True},
+            },
+            # only pull the fields needed to compare — keeps the scan cheap
+            {"job_id": 1, "descriptionText": 1, "embedding_hash": 1},
+        )
+
+        changed_ids = []
+        for doc in candidates:
+            text = (doc.get("descriptionText") or "").strip()
+            if len(text) < 20:
+                continue
+            if hash_text(text[:MAX_CHARS]) != doc.get("embedding_hash"):
+                changed_ids.append(doc["job_id"])
+
+        print(f"🔁 Found {len(changed_ids)} jobs with changed descriptions")
+
+        if not changed_ids:
+            return
+
+        # yield full docs in batches so the caller can re-embed incrementally
+        for i in range(0, len(changed_ids), batch_size):
+            id_batch = changed_ids[i:i + batch_size]
+            yield list(
+                self.collection.find({"job_id": {"$in": id_batch}})
+            )

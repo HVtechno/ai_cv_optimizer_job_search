@@ -217,6 +217,37 @@ def main():
     else:
         print(f"✅ Total embedded this run: {total_embedded}")
 
+    # ------------------------
+    # RE-EMBED CHANGED DESCRIPTIONS
+    # ------------------------
+    print("🔁 Re-checking for changed descriptions...")
+
+    total_reembedded = 0
+
+    for changed_jobs in db.get_jobs_with_changed_descriptions(batch_size=500):
+
+        if not changed_jobs:
+            continue
+
+        # reset the flag so the existing filter re-embeds them
+        for j in changed_jobs:
+            j["embedding_created"] = False
+
+        processed_jobs = process_embeddings(changed_jobs)
+
+        if not processed_jobs:
+            continue
+
+        db.bulk_update_embeddings(processed_jobs)
+        total_reembedded += len(processed_jobs)
+
+        print(f"♻️ Re-embedded {len(processed_jobs)} changed jobs (running total: {total_reembedded})")
+
+    if total_reembedded == 0:
+        print("✅ No changed descriptions to re-embed")
+    else:
+        print(f"✅ Total re-embedded this run: {total_reembedded}")
+
     # stop Mongo monitor threads cleanly
     db.client.close()
 
