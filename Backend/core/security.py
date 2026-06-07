@@ -84,6 +84,11 @@ def get_current_user_doc(user_id: str = Depends(get_current_user)) -> dict:
     if not user:
         # Should not happen for a valid token, but degrade gracefully to basic.
         return {"email": user_id, "plan": "basic"}
+    # Lazily expire MANUAL (iDEAL) Pro grants whose 30 days have elapsed. This is
+    # a no-op for Stripe-managed and basic users (Stripe expiry is handled by its
+    # own webhook), so it cannot affect any Stripe subscription.
+    from core.manual_expiry import expire_manual_if_needed
+    user = expire_manual_if_needed(user, db)
     return user
 
 

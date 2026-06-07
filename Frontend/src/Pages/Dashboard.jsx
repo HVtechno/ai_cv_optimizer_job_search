@@ -13,6 +13,7 @@ import ResumeHeader from "./dashboard/ResumeHeader";
 import JobsTable from "./dashboard/JobsTable";
 import AnalysisPanel from "./dashboard/AnalysisPanel";
 import SettingsPanel from "./dashboard/SettingsPanel";
+import AdminPanel from "./dashboard/AdminPanel";
 import { normalizeJob, startFakeProgress } from "./dashboard/dashboardUtils";
 
 export default function Dashboard() {
@@ -41,7 +42,15 @@ export default function Dashboard() {
   const [progress, setProgress] = useState(0);
   const [lastRefreshedAt, setLastRefreshedAt] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
-  const [activePage, setActivePage] = useState("Dashboard");
+  const [activePage, setActivePage] = useState(() => {
+    // Open Settings directly when arriving via ?view=settings (used by the
+    // upgrade/resubscribe buttons so they land on the iDEAL payment panel).
+    if (typeof window !== "undefined") {
+      const v = new URLSearchParams(window.location.search).get("view");
+      if (v === "settings") return "Settings";
+    }
+    return "Dashboard";
+  });
   const [showAIModal, setShowAIModal] = useState(false);
 
   // Upgrade modal — opened when a gated (Pro-only) endpoint returns a 403, or
@@ -560,6 +569,8 @@ export default function Dashboard() {
           </>
         ) : activePage === "Settings" ? (
           <SettingsPanel />
+        ) : activePage === "Admin:payments" ? (
+          <AdminPanel subpage="payments" />
         ) : (
           <div className="h-full w-full flex items-center justify-center text-gray-500">{activePage}</div>
         )}

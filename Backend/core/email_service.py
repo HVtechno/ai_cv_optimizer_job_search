@@ -215,3 +215,82 @@ def send_goodbye_email(to_email: str) -> bool:
         f"Questions? support@resuviq-ai.nl"
     )
     return _send(to_email, subject, html, text)
+
+# ── Public: manual iDEAL payment-link email ───────────────────────────────────
+# Sent by the admin (you) from the iDEAL admin panel after a user requests Pro
+# and you've created a Tikkie/iDEAL link for them. Delivers the link with the
+# price + 30-day terms. This is an explicit, admin-triggered action — never
+# automatic.
+
+def send_payment_link_email(to_email: str, payment_url: str, amount_eur: int, period_days: int = 30, link_expires: str | None = None) -> bool:
+    subject = f"Your {BRAND} Pro payment link"
+    expiry_line = (
+        f" This payment link is valid until <b>{link_expires}</b> — please pay before "
+        f"then, otherwise you'll need to request a new link."
+        if link_expires else ""
+    )
+    html = _wrap(
+        title="Your Pro payment link is ready",
+        intro=(
+            f"Thanks for requesting {BRAND} Pro! Use the secure iDEAL link below "
+            f"to pay €{amount_eur} for {period_days} days of Pro. Your Pro features "
+            f"are activated as soon as we confirm your payment.{expiry_line}"
+        ),
+        button_label=f"Pay €{amount_eur} with iDEAL",
+        button_url=payment_url,
+        footer_note=(
+            f"This grants {period_days} days of Pro access and does not renew "
+            f"automatically."
+            + (f" Payment link valid until {link_expires}." if link_expires else "")
+            + " If you didn't request this, you can ignore this email."
+        ),
+    )
+    text = (
+        f"Thanks for requesting {BRAND} Pro!\n\n"
+        f"Pay €{amount_eur} for {period_days} days of Pro using this iDEAL link:\n{payment_url}\n\n"
+        + (f"This link is valid until {link_expires}. If you don't pay before then, "
+           f"you'll need to request a new link.\n\n" if link_expires else "")
+        + f"Your Pro features activate as soon as we confirm your payment. "
+        f"This does not renew automatically.\n\n"
+        f"Questions? support@resuviq-ai.nl"
+    )
+    return _send(to_email, subject, html, text)
+
+
+# ── Public: Pro activated confirmation email ──────────────────────────────────
+# Sent by the admin confirm step once a manual iDEAL payment is verified and Pro
+# has been granted. Lets the user know their access is live.
+
+def send_pro_activated_email(to_email: str, period_days: int = 30, period_end: str | None = None) -> bool:
+    subject = f"You're Pro on {BRAND}! 🎉"
+    end_line = (
+        f"Your Pro access is active until <b>{period_end}</b>."
+        if period_end else
+        f"Your Pro access is active for the next {period_days} days."
+    )
+    html = _wrap(
+        title="Welcome to Pro — you're all set!",
+        intro=(
+            f"Your payment is confirmed and your {BRAND} Pro access is now live. "
+            f"{end_line} Enjoy the full service — AI resume rewriting, cover and "
+            f"motivation letters, PDF export, unlimited refreshes, and more job "
+            f"matches. Thank you for your support!"
+        ),
+        button_label="Open Resuviq AI",
+        button_url=FRONTEND_URL,
+        footer_note=(
+            f"This Pro period lasts {period_days} days and does not renew "
+            f"automatically — we'll be in touch when it's time to extend."
+        ),
+    )
+    text = (
+        f"You're Pro on {BRAND}!\n\n"
+        f"Your payment is confirmed and your Pro access is now live. "
+        f"{'Active until ' + period_end + '.' if period_end else f'Active for the next {period_days} days.'}\n\n"
+        f"Enjoy the full service — AI resume rewriting, cover & motivation letters, "
+        f"PDF export, unlimited refreshes, and more job matches.\n\n"
+        f"Open {BRAND}: {FRONTEND_URL}\n\n"
+        f"This Pro period lasts {period_days} days and does not renew automatically.\n\n"
+        f"Questions? support@resuviq-ai.nl"
+    )
+    return _send(to_email, subject, html, text)

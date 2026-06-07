@@ -1,27 +1,24 @@
 import { useAuth } from "../context/AuthContext";
-import { startCheckout } from "./Billing";
-import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 /**
  * DowngradeNotice — a friendly popup shown once when a user's paid subscription
  * has ended and they've been moved back to the Free tier. Detection lives in
  * AuthContext (justDowngraded); this just renders + offers a resubscribe button.
  *
+ * INTERIM (no-KvK): "Subscribe to Pro" sends the user to the dashboard settings
+ * where the iDEAL payment panel lives, instead of starting Stripe checkout.
+ *
  * Mount it once near the app root (e.g. in App.jsx) so it can appear on any page.
  */
 export default function DowngradeNotice() {
   const { justDowngraded, clearDowngradeNotice } = useAuth();
-  const [busy, setBusy] = useState(false);
+  const navigate = useNavigate();
   if (!justDowngraded) return null;
 
-  const resubscribe = async () => {
-    try {
-      setBusy(true);
-      await startCheckout("monthly");
-    } catch (e) {
-      console.error(e);
-      setBusy(false);
-    }
+  const resubscribe = () => {
+    clearDowngradeNotice();
+    navigate("/dashboard?view=settings");
   };
 
   return (
@@ -66,17 +63,16 @@ export default function DowngradeNotice() {
           </button>
           <button
             onClick={resubscribe}
-            disabled={busy}
             style={{
               flex: 1.5, padding: "12px 0", borderRadius: 10,
-              cursor: busy ? "wait" : "pointer",
+              cursor: "pointer",
               fontSize: 13, fontWeight: 800, fontFamily: "var(--font-body)",
               background: "linear-gradient(135deg,var(--g1),var(--g2))",
-              color: "#ffffff", border: "none", opacity: busy ? 0.7 : 1,
+              color: "#ffffff", border: "none",
               textShadow: "0 1px 2px rgba(0,0,0,0.35)",
             }}
           >
-            {busy ? "Redirecting…" : "Subscribe to Pro →"}
+            Subscribe to Pro →
           </button>
         </div>
       </div>

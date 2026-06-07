@@ -519,3 +519,152 @@ class MongoDB:
             if isinstance(entry.get("refreshed_at"), __import__("datetime").datetime):
                 entry["refreshed_at"] = entry["refreshed_at"].isoformat()
         return history
+
+    # ── Manual iDEAL Pro requests (additive — does NOT touch Stripe paths) ─────
+    # Flow: user requests Pro -> you create a Tikkie link and email it (status
+    # becomes link_sent) -> user pays -> you confirm (status confirmed, Pro
+    # granted). Granting still goes through update_user_subscription() — the same
+    # seam Stripe uses — so plan-flipping lives in exactly one place.
+    #
+    # pro_requests documents:
+    #   {
+    #     "request_id":   "req_ab12cd34",      # unique id
+    #     "email":        "user@x.com",        # who it's for (verified JWT identity)
+    #     "amount_eur":   29,
+    #     "status":       "requested" | "link_sent" | "confirmed",
+    #     "payment_url":  None | "https://tikkie.me/...",  # set when you send a link
+    #     "created_at":   datetime,
+    #     "link_sent_at": datetime | None,
+    #     "confirmed_at": datetime | None,
+    #     "confirmed_by": "support@resuviq-ai.nl" | None,
+    #     "period_end":   datetime | None,     # set on confirm (now + 30d)
+    #   }
+
+    def _ensure_pro_requests(self):
+        """Lazily create the collection handle + indexes on first use."""
+        if not hasattr(self, "pro_requests"):
+            self.pro_requests = self.db["pro_requests"]
+            self.pro_requests.create_index("request_id", unique=True)
+            self.pro_requests.create_index("email")
+            self.pro_requests.create_index("status")
+
+    def create_pro_request(self, email: str, amount_eur: int) -> dict:
+        """
+        Create (or return the user's existing OPEN) Pro request. Idempotent: a
+        user with a request still in 'requested' or 'link_sent' gets that same
+        one back instead of spawning duplicates. A user whose last request was
+        already 'confirmed' or whose link has expired gets a fresh one.
+        """
+        self._ensure_pro_requests()
+        self._expire_stale_link_requests(email)   # free up expired links first
+        existing = self.pro_requests.find_one(
+            {"email": email, "status": {"$in": ["requested", "link_sent"]}},
+            {"_id": 0},
+        )
+        if existing:
+            return existing
+
+        import secrets
+        rid = "req_" + secrets.token_hex(4)
+        doc = {
+            "request_id":   rid,
+            "email":        email,
+            "amount_eur":   amount_eur,
+            "status":       "requested",
+            "payment_url":  None,
+            "created_at":   datetime.now(timezone.utc),
+            "link_sent_at": None,
+            "payment_link_expires_at": None,
+            "confirmed_at": None,
+            "confirmed_by": None,
+            "period_end":   None,
+        }
+        self.pro_requests.insert_one(doc)
+        doc.pop("_id", None)
+        return doc
+
+    # Days a sent payment link stays valid (counted from link_sent_at).
+    PAYMENT_LINK_VALID_DAYS = 14
+
+    def _expire_stale_link_requests(self, email: str | None = None):
+        """
+        Flip any link_sent request whose payment_link_expires_at has passed to
+        status 'link_expired'. This removes it from the open set (so the user can
+        request again) and from the admin queue. Optionally scoped to one email.
+        """
+        self._ensure_pro_requests()
+        q = {
+            "status": "link_sent",
+            "payment_link_expires_at": {"$ne": None, "$lte": datetime.now(timezone.utc)},
+        }
+        if email:
+            q["email"] = email
+        self.pro_requests.update_many(q, {"$set": {"status": "link_expired"}})
+
+    def get_open_pro_request(self, email: str) -> dict | None:
+        """The user's current open request (requested or link_sent), if any.
+        Expired links are swept first so they don't count as open."""
+        self._ensure_pro_requests()
+        self._expire_stale_link_requests(email)
+        return self.pro_requests.find_one(
+            {"email": email, "status": {"$in": ["requested", "link_sent"]}},
+            {"_id": 0},
+        )
+
+    def get_pro_request(self, request_id: str) -> dict | None:
+        self._ensure_pro_requests()
+        return self.pro_requests.find_one({"request_id": request_id}, {"_id": 0})
+
+    def list_pro_requests(self, statuses: list | None = None) -> list:
+        """Admin queue. Defaults to open requests (requested + link_sent).
+        Expired links are swept first so the queue stays clean."""
+        self._ensure_pro_requests()
+        self._expire_stale_link_requests()
+        statuses = statuses or ["requested", "link_sent"]
+        return list(
+            self.pro_requests.find({"status": {"$in": statuses}}, {"_id": 0})
+                             .sort("created_at", 1)
+        )
+
+    def attach_pro_request_link(self, request_id: str, payment_url: str) -> dict | None:
+        """Record the Tikkie link, mark link_sent, and set a 14-day expiry.
+        Returns the updated request (with payment_link_expires_at) or None."""
+        self._ensure_pro_requests()
+        now = datetime.now(timezone.utc)
+        expires = now + timedelta(days=self.PAYMENT_LINK_VALID_DAYS)
+        res = self.pro_requests.update_one(
+            {"request_id": request_id, "status": {"$in": ["requested", "link_sent"]}},
+            {"$set": {
+                "payment_url":  payment_url,
+                "status":       "link_sent",
+                "link_sent_at": now,
+                "payment_link_expires_at": expires,
+            }},
+        )
+        if res.modified_count != 1:
+            return None
+        return self.pro_requests.find_one({"request_id": request_id}, {"_id": 0})
+
+    def mark_pro_request_confirmed(
+        self, request_id: str, *, confirmed_by: str, period_end: datetime
+    ) -> bool:
+        """Flip a request to confirmed. Returns False if not found/already done."""
+        self._ensure_pro_requests()
+        res = self.pro_requests.update_one(
+            {"request_id": request_id, "status": {"$in": ["requested", "link_sent"]}},
+            {"$set": {
+                "status":       "confirmed",
+                "confirmed_at": datetime.now(timezone.utc),
+                "confirmed_by": confirmed_by,
+                "period_end":   period_end,
+            }},
+        )
+        return res.modified_count == 1
+
+    def set_manual_plan_source(self, email: str, source: str | None):
+        """Tag (or clear) a user as having a MANUAL plan grant, so the lazy
+        expiry helper knows to manage them and Stripe users are never affected."""
+        self.users.update_one(
+            {"email": email},
+            {"$set": {"manual_plan_source": source}},
+        )

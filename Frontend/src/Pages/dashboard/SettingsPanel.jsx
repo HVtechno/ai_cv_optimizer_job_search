@@ -2,9 +2,10 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import {
-  fetchSubscription, startCheckout, openBillingPortal,
+  fetchSubscription,
   fetchUsage, deleteAccount,
 } from "../../components/Billing";
+import IdealPanel from "../../components/IdealPanel";
 import FeedbackModal from "../../components/Feedbackmodal";
 
 /**
@@ -17,7 +18,6 @@ import FeedbackModal from "../../components/Feedbackmodal";
 export default function SettingsPanel() {
   const { user, plan, limits, subStatus, refreshPlan, logout } = useAuth();
   const navigate = useNavigate();
-  const [busy, setBusy] = useState(false);
   const [sub, setSub] = useState(null);
 
   // Live usage meters. Pro metering is per-resume, so we pass the active resume
@@ -55,26 +55,6 @@ export default function SettingsPanel() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshPlan]);
-
-  const handleUpgrade = async () => {
-    try {
-      setBusy(true);
-      await startCheckout("monthly");
-    } catch (e) {
-      console.error(e);
-      setBusy(false);
-    }
-  };
-
-  const handleManage = async () => {
-    try {
-      setBusy(true);
-      await openBillingPortal();
-    } catch (e) {
-      console.error(e);
-      setBusy(false);
-    }
-  };
 
   const handleDelete = async () => {
     if (deleteConfirm.trim().toUpperCase() !== "DELETE") return;
@@ -226,28 +206,16 @@ export default function SettingsPanel() {
                 unlimited refreshes, and more job matches.
               </p>
 
-              {/* Single monthly price */}
-              <div style={{ marginBottom: 18 }}>
-                <span style={{ fontFamily: "var(--font-display)", fontSize: 24, fontWeight: 800, color: "#ffffff" }}>€29</span>
-                <span style={{ fontSize: 13, color: "var(--muted)", fontFamily: "var(--font-body)" }}> / month</span>
-              </div>
-
-              <button onClick={handleUpgrade} disabled={busy} style={primaryBtn(busy)}>
-                {busy ? "Redirecting…" : "Upgrade to Pro →"}
-              </button>
+              {/* Manual iDEAL payment panel (no-KvK interim). */}
+              <IdealPanel />
             </>
           )}
 
           {plan === "pro" && (
             <>
-              <div style={sectionLabel}>Manage subscription</div>
-              <p style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.7, marginBottom: 18, fontFamily: "var(--font-body)" }}>
-                Update your payment method, view invoices, or cancel anytime through
-                the secure Stripe portal.
-              </p>
-              <button onClick={handleManage} disabled={busy} style={primaryBtn(busy)}>
-                {busy ? "Opening…" : "Open billing portal →"}
-              </button>
+              {/* IdealPanel shows the active-Pro status + contact note, and no
+                  request option while Pro is active. */}
+              <IdealPanel />
             </>
           )}
 
@@ -262,6 +230,7 @@ export default function SettingsPanel() {
             </>
           )}
         </div>
+
 
         {/* Feedback card */}
         <div style={cardStyle}>

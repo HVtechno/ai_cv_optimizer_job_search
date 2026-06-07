@@ -6,7 +6,6 @@ import DashCard from "../../components/DashCard";
 import VeloraLogo from "../../components/VeloraLogo";
 import { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
-import { startCheckout } from "../../components/Billing";
 
 // Your sales inbox for Enterprise "Contact sales".
 const ENTERPRISE_EMAIL = "support@resuviq-ai.nl";
@@ -177,13 +176,9 @@ export function PricingSection({ t, sectionRef, onAuthOpen }) {
 
     if (id === "pro") {
       if (!user) { onAuthOpen(); return; }       // must be signed in to subscribe
-      try {
-        setBusy(true);
-        await startCheckout("monthly");
-      } catch (e) {
-        console.error("Checkout failed", e);
-        setBusy(false);
-      }
+      // INTERIM (no-KvK): send them to the dashboard settings where the iDEAL
+      // payment panel lives, instead of starting Stripe checkout.
+      window.location.href = "/dashboard?view=settings";
       return;
     }
 

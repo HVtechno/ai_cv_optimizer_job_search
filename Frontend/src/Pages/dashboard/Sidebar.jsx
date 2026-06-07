@@ -1,20 +1,29 @@
+import { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { isAdminEmail } from "../../components/IdealAdminPanel";
 
 /**
- * Sidebar — adds a "Settings" nav item and a plan badge under the avatar.
- * Your existing nav items and logout are unchanged. The plan badge reads from
- * AuthContext (plan), so it shows FREE / PRO / ENTERPRISE automatically.
+ * Sidebar — Dashboard / Settings nav, plan badge, and an expandable "Admin"
+ * group (admins only) that reveals sub-pages like "Users payment queue".
+ * Clicking a sub-page sets activePage to e.g. "Admin:payments", which Dashboard
+ * renders in the main area.
  */
 export default function Sidebar({ sidebarOpen, setSidebarOpen, activePage, setActivePage }) {
   const { user, logout, plan } = useAuth();
   const navigate = useNavigate();
+  const isAdmin = isAdminEmail(user?.sub);
+  // Admin group starts expanded if you're already on an Admin sub-page.
+  const [adminOpen, setAdminOpen] = useState(() => String(activePage).startsWith("Admin"));
 
   const planLabel = { basic: "FREE", pro: "PRO", enterprise: "ENT" }[plan] || "FREE";
   const isPaid = plan === "pro" || plan === "enterprise";
 
-  // Added "Settings" to the existing list.
+  // Top-level items shown to everyone.
   const navItems = ["Dashboard", "Settings"];
+
+  // Admin sub-pages (add more here later).
+  const adminSubpages = [{ id: "Admin:payments", label: "Users payment queue" }];
 
   return (
     <div className={`bg-gray-900 ${sidebarOpen ? "w-56" : "w-16"} transition-all flex flex-col justify-between`}>
@@ -50,6 +59,38 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, activePage, setAc
               {sidebarOpen ? i : i[0]}
             </div>
           ))}
+
+          {/* Admin group — expandable, admins only */}
+          {isAdmin && (
+            <div className="space-y-1">
+              <div
+                onClick={() => setAdminOpen((o) => !o)}
+                className={`p-2 rounded cursor-pointer hover:bg-gray-800 flex items-center ${
+                  String(activePage).startsWith("Admin") ? "text-white" : "text-gray-400"
+                }`}
+              >
+                <span className="mr-2">◆</span>
+                {sidebarOpen && <span className="flex-1">Admin</span>}
+                {sidebarOpen && <span className="text-[10px]">{adminOpen ? "▾" : "▸"}</span>}
+              </div>
+
+              {adminOpen && sidebarOpen && (
+                <div className="ml-3 pl-2 border-l border-gray-800 space-y-1">
+                  {adminSubpages.map((s) => (
+                    <div
+                      key={s.id}
+                      onClick={() => setActivePage(s.id)}
+                      className={`px-2 py-1.5 rounded cursor-pointer text-[13px] hover:bg-gray-800 ${
+                        activePage === s.id ? "bg-gray-800 text-white" : "text-gray-400"
+                      }`}
+                    >
+                      {s.label}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
