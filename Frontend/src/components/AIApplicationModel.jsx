@@ -88,6 +88,11 @@ export default function AIApplicationModalPreview({
     setMotivationHtml("");
     setError("");
     setActiveTab("Resume");
+    // Default the language to the JOB's own language (Dutch JD -> Dutch,
+    // English JD -> English). The user can still override via the dropdown; the
+    // override holds until they open a different job. Falls back to English when
+    // the job has no language (defensive — real jobs always carry one).
+    setLanguage(job?.job_language === "Dutch" ? "Dutch" : "English");
   }, [job?.id]);
 
   // Central handler: given a fetch Response + parsed body, if it's an upgrade
@@ -179,6 +184,7 @@ export default function AIApplicationModalPreview({
     try {
       const form = new FormData();
       form.append("job_id", String(job.id));
+      form.append("target_language", language);
       const res  = await fetch(`${API}/resume-cover-letter/${activeResume.id}`, {
         method: "POST", headers: authHeaders(), body: form,
       });
@@ -198,6 +204,7 @@ export default function AIApplicationModalPreview({
     try {
       const form = new FormData();
       form.append("job_id", String(job.id));
+      form.append("target_language", language);
       const res = await fetch(`${API}/resume-cover-letter/${activeResume.id}/pdf`, {
         method: "POST", headers: authHeaders(), body: form,
       });
@@ -219,6 +226,7 @@ export default function AIApplicationModalPreview({
     try {
       const form = new FormData();
       form.append("job_id", String(job.id));
+      form.append("target_language", language);
       const res  = await fetch(`${API}/resume-motivation-letter/${activeResume.id}`, {
         method: "POST", headers: authHeaders(), body: form,
       });
@@ -238,6 +246,7 @@ export default function AIApplicationModalPreview({
     try {
       const form = new FormData();
       form.append("job_id", String(job.id));
+      form.append("target_language", language);
       const res = await fetch(`${API}/resume-motivation-letter/${activeResume.id}/pdf`, {
         method: "POST", headers: authHeaders(), body: form,
       });
@@ -465,8 +474,8 @@ export default function AIApplicationModalPreview({
               onChange={(e) => setLanguage(e.target.value)}
               className="px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-white focus:outline-none"
             >
-              {["English","Dutch","German","French","Spanish","Italian","Portuguese","Polish"].map(l => (
-                <option key={l} value={l}>{l}</option>
+              {["English","Dutch"].map(l => (
+                <option key={l} value={l} className="bg-[#0f172a] text-white">{l}</option>
               ))}
             </select>
 

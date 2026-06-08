@@ -254,6 +254,19 @@ def format_date(val) -> str:
         return str(val)
 
 
+def _job_language_label(job: dict) -> str:
+    """
+    Map the stored job language to the exact label the optimize dropdown uses
+    ("English" / "Dutch"). Falls back to "English" when the field is missing or
+    unrecognised — a safe default that matches the dropdown's baseline.
+    """
+    raw = (job.get("jobPostedLanguage") or job.get("language") or job.get("lang") or "")
+    r = str(raw).strip().lower()
+    if r in ("nl", "nld", "dut", "dutch", "nederlands"):
+        return "Dutch"
+    return "English"
+
+
 def normalize_result(item: dict, index: int) -> dict:
     job = item.get("job", {})
     ats = item.get("ats", {})
@@ -264,6 +277,10 @@ def normalize_result(item: dict, index: int) -> dict:
         "link":                        job.get("link", ""),
         "location":                    job.get("location", ""),
         "expiry":                      format_date(job.get("expireAt")),
+        # Posted language of the JD, normalised to a UI label ("English"/"Dutch").
+        # The optimize modal uses this to default the resume/cover/motivation
+        # language to the job's own language (user can still override).
+        "job_language":                _job_language_label(job),
         "match":                       ats.get("score", 0),
         "semantic_similarity":         ats.get("semantic_similarity", 0),
         "keyword_score":               ats.get("keyword_score", 0),

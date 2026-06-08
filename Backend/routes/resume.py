@@ -140,7 +140,7 @@ async def _score_all_jobs(resume_text: str, resume_embedding: list, jobs: list) 
 
 async def _rescore_rewritten(rewritten_text: str, job: dict, job_embedding: list) -> dict:
     from core.openai_client import get_embedding
-    from services.ats_engine import aligned_keyword_score, skill_fit_score
+    from services.ats_engine import aligned_keyword_score, skill_fit_score, _score_breakdown_text
     rewritten_emb = await get_embedding(rewritten_text)
     jd_text  = job.get("descriptionText", "")
     sim      = cosine_similarity(rewritten_emb, job_embedding)
@@ -158,6 +158,8 @@ async def _rescore_rewritten(rewritten_text: str, job: dict, job_embedding: list
     skill_fit = skill_fit_score(strong, missing)
     ats      = compute_ats_score(sem_norm, kw_val, skill_fit)
     prob     = compute_interview_probability(ats)
+    if summary:
+        summary = _score_breakdown_text(ats, sem_norm, kw_val, skill_fit) + summary
     return {
         "score":                      int(round(ats)),
         "semantic_similarity":        round(sim * 100, 1),
@@ -755,7 +757,9 @@ async def export_pdf_from_html(payload: dict, user_id: str = Depends(get_current
 
 @router.post("/resume-cover-letter/{resume_id}")
 async def get_cover_letter(
-    resume_id: str, job_id: str = Form(...), user: dict = Depends(get_current_user_doc),
+    resume_id: str, job_id: str = Form(...),
+    target_language: str = Form("English"),
+    user: dict = Depends(get_current_user_doc),
 ):
     user_id = user["email"]
     resume = db.get_resume(resume_id)
@@ -772,6 +776,7 @@ async def get_cover_letter(
         jd_text=selected["job"].get("descriptionText",""),
         candidate_name=candidate_name,
         ats_data=selected.get("ats",{}),
+        target_language=target_language,
     )
     return {
         "cover_letter_text": text,
@@ -784,7 +789,9 @@ async def get_cover_letter(
 
 @router.post("/resume-cover-letter/{resume_id}/pdf")
 async def download_cover_letter_pdf(
-    resume_id: str, job_id: str = Form(...), user: dict = Depends(get_current_user_doc),
+    resume_id: str, job_id: str = Form(...),
+    target_language: str = Form("English"),
+    user: dict = Depends(get_current_user_doc),
 ):
     user_id = user["email"]
     resume = db.get_resume(resume_id)
@@ -796,7 +803,7 @@ async def download_cover_letter_pdf(
         raise HTTPException(status_code=404, detail="Job not found")
     _enforce_optimization_quota(user, resume_id, job_id)
     candidate_name = resolve_candidate_name(resume)   # NEW
-    text      = await generate_cover_letter(resume.get("resume_text",""), selected["job"].get("descriptionText",""), candidate_name, selected.get("ats",{}))
+    text      = await generate_cover_letter(resume.get("resume_text",""), selected["job"].get("descriptionText",""), candidate_name, selected.get("ats",{}), target_language=target_language)
     pdf_bytes = html_to_pdf(build_letter_html(text, candidate_name, "Cover Letter"))
     return Response(content=pdf_bytes, media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{candidate_name.replace(" ","_")}_cover_letter.pdf"'})
@@ -804,7 +811,9 @@ async def download_cover_letter_pdf(
 
 @router.post("/resume-motivation-letter/{resume_id}")
 async def get_motivation_letter(
-    resume_id: str, job_id: str = Form(...), user: dict = Depends(get_current_user_doc),
+    resume_id: str, job_id: str = Form(...),
+    target_language: str = Form("English"),
+    user: dict = Depends(get_current_user_doc),
 ):
     user_id = user["email"]
     resume = db.get_resume(resume_id)
@@ -821,6 +830,7 @@ async def get_motivation_letter(
         jd_text=selected["job"].get("descriptionText",""),
         candidate_name=candidate_name,
         ats_data=selected.get("ats",{}),
+        target_language=target_language,
     )
     return {
         "motivation_letter_text": text,
@@ -833,7 +843,9 @@ async def get_motivation_letter(
 
 @router.post("/resume-motivation-letter/{resume_id}/pdf")
 async def download_motivation_letter_pdf(
-    resume_id: str, job_id: str = Form(...), user: dict = Depends(get_current_user_doc),
+    resume_id: str, job_id: str = Form(...),
+    target_language: str = Form("English"),
+    user: dict = Depends(get_current_user_doc),
 ):
     user_id = user["email"]
     resume = db.get_resume(resume_id)
@@ -845,7 +857,7 @@ async def download_motivation_letter_pdf(
         raise HTTPException(status_code=404, detail="Job not found")
     _enforce_optimization_quota(user, resume_id, job_id)
     candidate_name = resolve_candidate_name(resume)   # NEW
-    text      = await generate_motivation_letter(resume.get("resume_text",""), selected["job"].get("descriptionText",""), candidate_name, selected.get("ats",{}))
+    text      = await generate_motivation_letter(resume.get("resume_text",""), selected["job"].get("descriptionText",""), candidate_name, selected.get("ats",{}), target_language=target_language)
     pdf_bytes = html_to_pdf(build_letter_html(text, candidate_name, "Motivation Letter"))
     return Response(content=pdf_bytes, media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{candidate_name.replace(" ","_")}_motivation_letter.pdf"'})

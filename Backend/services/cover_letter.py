@@ -87,14 +87,22 @@ async def generate_cover_letter(
     jd_text: str,
     candidate_name: str,
     ats_data: dict,
+    target_language: str = "English",
 ) -> str:
+    # Honour the user's explicit language choice. This OVERRIDES the prompt's
+    # "mirror the JD language" guidance — the user picked a language in the UI and
+    # that wins. Defaults to English so callers that don't pass it are unchanged.
+    lang_directive = (
+        f"\n\nIMPORTANT: Write the entire cover letter in {target_language}. "
+        f"Use natural, fluent, professional {target_language}."
+    )
     try:
         response = await client.chat.completions.create(
             model=CHAT_MODEL,
             temperature=0.4,
             max_tokens=800,
             messages=[
-                {"role": "system", "content": COVER_LETTER_SYSTEM},
+                {"role": "system", "content": COVER_LETTER_SYSTEM + lang_directive},
                 {"role": "user",   "content": COVER_LETTER_PROMPT.format(
                     candidate_name=candidate_name,
                     ats_score=ats_data.get("score", 0),
@@ -116,14 +124,19 @@ async def generate_motivation_letter(
     jd_text: str,
     candidate_name: str,
     ats_data: dict,
+    target_language: str = "English",
 ) -> str:
+    lang_directive = (
+        f"\n\nIMPORTANT: Write the entire motivation letter in {target_language}. "
+        f"Use natural, fluent, professional {target_language}."
+    )
     try:
         response = await client.chat.completions.create(
             model=CHAT_MODEL,
             temperature=0.45,
             max_tokens=1000,
             messages=[
-                {"role": "system", "content": MOTIVATION_LETTER_SYSTEM},
+                {"role": "system", "content": MOTIVATION_LETTER_SYSTEM + lang_directive},
                 {"role": "user",   "content": MOTIVATION_LETTER_PROMPT.format(
                     candidate_name=candidate_name,
                     strong_skills=", ".join(ats_data.get("strong_skills", [])),

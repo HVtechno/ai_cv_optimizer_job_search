@@ -19,7 +19,7 @@ import re
 import json
 import asyncio
 import numpy as np
-from core.openai_client import json_completion, client, FAST_MODEL
+from core.openai_client import json_completion, client, FAST_MODEL, SKILL_MODEL
 
 
 STOP_WORDS = {
@@ -357,7 +357,10 @@ async def classify_skills(resume_text: str, jd_text: str) -> tuple[list, list, l
         if base_delay:
             await asyncio.sleep(base_delay)
         try:
-            raw  = await json_completion(SKILL_PROMPT.format(resume=resume_text[:3000], jd=jd_text[:2000]))
+            raw  = await json_completion(
+                SKILL_PROMPT.format(resume=resume_text[:3000], jd=jd_text[:2000]),
+                model=SKILL_MODEL,
+            )
             data = json.loads(raw)
             return (
                 data.get("strong_skills", []),
@@ -412,6 +415,35 @@ async def generate_summary(resume_text: str, jd_text: str) -> str:
         return "Summary generation failed."
 
 
+def _score_breakdown_text(ats: float, sem_norm: float, kw_val: float, skill_fit) -> str:
+    """
+    Plain-English explanation of how this job's ATS % was reached, prepended to
+    the summary so the user understands *why* they got e.g. 35%. The wording
+    mirrors the exact formula that ran: the 3-channel blend when skills are
+    available, or the 2-channel fallback when they're not — so the explanation
+    never contradicts the actual score.
+    """
+    score = int(round(ats))
+    sem = int(round(sem_norm))
+    kw  = int(round(kw_val))
+    if skill_fit is not None:
+        fit = int(round(skill_fit))
+        return (
+            f"Your match score is {score}%. This is made up of three parts: "
+            f"how closely your overall experience fits the role ({sem}% — weighted most heavily), "
+            f"how many of the job's key terms appear in your resume ({kw}% keyword match), "
+            f"and how many of the skills this role needs you already have ({fit}% skill fit). "
+            f"The overall {score}% blends these, with your experience match counting the most, "
+            f"your skills next, and keywords as a final adjustment.\n\n"
+        )
+    # Fallback path: no skill data, 2-channel formula.
+    return (
+        f"Your match score is {score}%. This combines how closely your overall "
+        f"experience fits the role ({sem}%, counting the most) with how many of the "
+        f"job's key terms appear in your resume ({kw}% keyword match).\n\n"
+    )
+
+
 async def score_resume_against_job(
     resume_text: str,
     resume_embedding: list,
@@ -448,15 +480,21 @@ async def score_resume_against_job(
     ats       = compute_ats_score(sem_norm, kw_val, skill_fit)
     prob      = compute_interview_probability(ats)
 
+    # Prepend a plain-English explanation of how the % was derived, so the user
+    # sees why they got this score before reading the AI summary. Only when a
+    # summary was actually generated (include_summary path).
+    if summary:
+        summary = _score_breakdown_text(ats, sem_norm, kw_val, skill_fit) + summary
+
     # Diagnostic — confirms whether the skill-fit channel is actually feeding the
     # score (skill_fit=None means classify_skills returned nothing and we fell
     # back to the old semantic+keyword formula).
-    # print(
-    #     f"[ATS calibrate] position name : {job.get('title','')} | "
-    #     f"sim : {sim:.4f} | sem_norm : {sem_norm:.2f} | "
-    #     f"kw : {kw_val:.2f} | fit : {skill_fit} "
-    #     f"(strong={len(strong)} missing={len(missing)}) | ATS : {ats:.2f}"
-    # )
+    print(
+        f"[ATS calibrate] position name : {job.get('title','')} | "
+        f"sim : {sim:.4f} | sem_norm : {sem_norm:.2f} | "
+        f"kw : {kw_val:.2f} | fit : {skill_fit} "
+        f"(strong={len(strong)} missing={len(missing)}) | ATS : {ats:.2f}"
+    )
 
     return {
         "score":                      int(round(ats)),

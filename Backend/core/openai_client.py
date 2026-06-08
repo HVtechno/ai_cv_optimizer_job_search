@@ -9,6 +9,12 @@ client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 EMBEDDING_MODEL = os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-large")
 CHAT_MODEL      = os.getenv("OPENAI_CHAT_MODEL",      "gpt-4o")
 FAST_MODEL      = os.getenv("OPENAI_FAST_MODEL",      "gpt-4o-mini")
+# Model used specifically for skill classification. Defaults to the cheap/fast
+# model because classify_skills runs once PER JOB on every upload/refresh and was
+# the single largest recurring LLM cost (~94% of per-job spend on gpt-4o). Routing
+# it to gpt-4o-mini cuts that ~6x. If skill-classification quality drops, set
+# OPENAI_SKILL_MODEL=gpt-4o in the environment to revert — no code change needed.
+SKILL_MODEL     = os.getenv("OPENAI_SKILL_MODEL",     "gpt-4o-mini")
 
 
 async def get_embedding(text: str) -> list[float]:
