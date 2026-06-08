@@ -86,6 +86,12 @@ db     = MongoDB()
 # ── Async scoring (depends on services — stays here) ──────────────────────────
 
 async def _score_all_jobs(resume_text: str, resume_embedding: list, jobs: list) -> list:
+    # Normalise the resume to English ONCE per upload (not per job) so the
+    # cross-language keyword channel works without paying a translation call for
+    # every job. English resumes pass through with no LLM call.
+    from utils.language import resume_to_english
+    resume_text_en = await resume_to_english(resume_text)
+
     job_embeddings = await asyncio.gather(*[
         get_or_create_job_embedding(
             job.get("job_id", str(i)),
@@ -94,14 +100,28 @@ async def _score_all_jobs(resume_text: str, resume_embedding: list, jobs: list) 
         )
         for i, job in enumerate(jobs)
     ])
+    # Bound how many jobs we score concurrently. Each job makes 2 OpenAI chat
+    # calls (classify_skills + summary). On a small TPM tier (e.g. 30k tokens/min)
+    # even 6 concurrent jobs overruns the per-minute token budget and triggers
+    # 429s on the trailing jobs (→ fit=None). 3 keeps the token rate under the cap
+    # while staying responsive. Raise this only if your OpenAI tier has a higher
+    # TPM limit; lower it to 2 if you still see [classify_skills] rate-limit logs.
+    SCORE_CONCURRENCY = 3
+    _sem = asyncio.Semaphore(SCORE_CONCURRENCY)
+
+    async def _score_one(job, job_emb):
+        async with _sem:
+            return await score_resume_against_job(
+                resume_text=resume_text,
+                resume_embedding=resume_embedding,
+                job=job,
+                job_embedding=job_emb,
+                include_summary=True,
+                resume_text_en=resume_text_en,
+            )
+
     ats_results = await asyncio.gather(*[
-        score_resume_against_job(
-            resume_text=resume_text,
-            resume_embedding=resume_embedding,
-            job=job,
-            job_embedding=job_emb,
-            include_summary=True,
-        )
+        _score_one(job, job_emb)
         for job, job_emb in zip(jobs, job_embeddings)
     ])
     # Build the stored results. Drop the heavy `embedding_chunks` from the job
@@ -120,17 +140,24 @@ async def _score_all_jobs(resume_text: str, resume_embedding: list, jobs: list) 
 
 async def _rescore_rewritten(rewritten_text: str, job: dict, job_embedding: list) -> dict:
     from core.openai_client import get_embedding
+    from services.ats_engine import aligned_keyword_score, skill_fit_score
     rewritten_emb = await get_embedding(rewritten_text)
     jd_text  = job.get("descriptionText", "")
     sim      = cosine_similarity(rewritten_emb, job_embedding)
     sem_norm = normalise_similarity(sim)
-    kw_val, matched_kw, missing_kw = keyword_score(rewritten_text, jd_text)
-    ats      = compute_ats_score(sem_norm, kw_val)
-    prob     = compute_interview_probability(ats)
+    kw_val, matched_kw, missing_kw = await aligned_keyword_score(
+        rewritten_text,
+        jd_text,
+        job_id=job.get("job_id", ""),
+        posted_lang=job.get("jobPostedLanguage"),
+    )
     (strong, weak, missing), summary = await asyncio.gather(
         classify_skills(rewritten_text, jd_text),
         generate_summary(rewritten_text, jd_text),
     )
+    skill_fit = skill_fit_score(strong, missing)
+    ats      = compute_ats_score(sem_norm, kw_val, skill_fit)
+    prob     = compute_interview_probability(ats)
     return {
         "score":                      int(round(ats)),
         "semantic_similarity":        round(sim * 100, 1),

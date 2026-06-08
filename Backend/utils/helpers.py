@@ -205,6 +205,47 @@ def filter_jobs(
 
 # ── Result formatting ─────────────────────────────────────────────────────────
 
+# Some scraped LinkedIn jobs carry a junk `title` that's actually a section header
+# from the posting body ("Requirements:", "The role", "Welcome to Eficode!") rather
+# than the real role name. `standardizedTitle` holds a clean normalised title but is
+# blank on ~43% of rows. best_title() prefers a usable `title`, falls back to
+# `standardizedTitle`, and only uses the raw title as a last resort — so the user
+# never sees a section header as the job name when a better label exists.
+_SECTION_TITLES = {
+    "requirements", "the role", "responsibilities", "about us", "about the role",
+    "overview", "your role", "what you will do", "the company", "welcome",
+    "introduction", "job description", "the opportunity", "who we are",
+}
+
+
+def _looks_like_junk_title(t) -> bool:
+    if not t or not str(t).strip():
+        return True
+    s = str(t).strip().lower().rstrip(":")
+    if s in _SECTION_TITLES:
+        return True
+    if len(s) < 4:
+        return True
+    return False
+
+
+def best_title(job: dict) -> str:
+    """Pick the most presentable job title: clean title > standardizedTitle > company > raw."""
+    title = job.get("title", "")
+    if not _looks_like_junk_title(title):
+        return str(title).strip()
+    std = job.get("standardizedTitle")
+    if std and str(std).strip():
+        return str(std).strip()
+    # Both title and standardizedTitle are unusable (e.g. a scraped "Requirements:"
+    # row with no standardized title). Fall back to the company name so the user
+    # sees something meaningful rather than a section header.
+    company = job.get("companyName")
+    if company and str(company).strip():
+        return f"Role at {str(company).strip()}"
+    return str(title).strip() if title else "Untitled role"
+
+
 def format_date(val) -> str:
     if not val: return "N/A"
     try:
@@ -218,7 +259,7 @@ def normalize_result(item: dict, index: int) -> dict:
     ats = item.get("ats", {})
     return {
         "id":                          job.get("job_id") or str(index),
-        "title":                       job.get("title", ""),
+        "title":                       best_title(job),
         "company":                     job.get("companyName", ""),
         "link":                        job.get("link", ""),
         "location":                    job.get("location", ""),

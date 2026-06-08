@@ -29,6 +29,7 @@ class MongoDB:
             inst.resumes           = inst.db["resumes"]           # metadata + text, NO binary
             inst.resume_embeddings = inst.db["resume_embeddings"] # keyed by resume_hash
             inst.job_embeddings    = inst.db["job_embeddings"]    # keyed by job_id
+            inst.jd_translations   = inst.db["jd_translations"]   # keyed by (job_id, target lang)
             inst.job_matches       = inst.db["job_matches"]       # keyed by resume_id
             inst.feedback          = inst.db["feedback"]          # user feedback entries
             inst.visits            = inst.db["visits"]            # active-visitor presence sessions
@@ -56,6 +57,7 @@ class MongoDB:
                     "_id": 0,
                     "job_id": 1,
                     "title": 1,
+                    "standardizedTitle": 1,
                     "descriptionText": 1,
                     "companyName": 1,
                     "link": 1,
@@ -455,6 +457,32 @@ class MongoDB:
             {"job_id": job_id},
             {"$set": {"job_id": job_id, "embedding": embedding,
                       "updated_at": datetime.utcnow()}},
+            upsert=True,
+        )
+
+    # ── JD translation cache ──────────────────────────────────────────────────
+    # Cross-language keyword matching translates a non-English job description to
+    # English exactly once, then reuses it forever. Keyed by (job_id, target lang)
+    # so a single job can hold translations for multiple targets if ever needed.
+    # This keeps the per-upload LLM cost at "one translation per NEW foreign job",
+    # dropping to zero on every subsequent score of the same job.
+
+    def get_jd_translation(self, job_id: str, target_lang: str = "en") -> str | None:
+        if not job_id:
+            return None
+        doc = self.jd_translations.find_one(
+            {"job_id": job_id, "target_lang": target_lang},
+            {"_id": 0, "text": 1},
+        )
+        return doc.get("text") if doc else None
+
+    def save_jd_translation(self, job_id: str, text: str, target_lang: str = "en"):
+        if not job_id:
+            return
+        self.jd_translations.update_one(
+            {"job_id": job_id, "target_lang": target_lang},
+            {"$set": {"job_id": job_id, "target_lang": target_lang,
+                      "text": text, "updated_at": datetime.utcnow()}},
             upsert=True,
         )
 
