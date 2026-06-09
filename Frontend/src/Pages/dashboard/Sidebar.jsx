@@ -16,14 +16,17 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, activePage, setAc
   // Admin group starts expanded if you're already on an Admin sub-page.
   const [adminOpen, setAdminOpen] = useState(() => String(activePage).startsWith("Admin"));
 
-  const planLabel = { basic: "FREE", pro: "PRO", enterprise: "ENT" }[plan] || "FREE";
-  const isPaid = plan === "pro" || plan === "enterprise";
+  const planLabel = isAdmin ? "ADMIN" : ({ basic: "FREE", pro: "PRO", enterprise: "ENT" }[plan] || "FREE");
+  const isPaid = isAdmin || plan === "pro" || plan === "enterprise";
 
   // Top-level items shown to everyone.
   const navItems = ["Dashboard", "Settings"];
 
   // Admin sub-pages (add more here later).
-  const adminSubpages = [{ id: "Admin:payments", label: "Users payment queue" }];
+  const adminSubpages = [
+    { id: "Admin:overview", label: "Overview" },
+    { id: "Admin:payments", label: "Users payment queue" },
+  ];
 
   return (
     <div className={`bg-gray-900 ${sidebarOpen ? "w-56" : "w-16"} transition-all flex flex-col justify-between`}>

@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from routes.resume import router as resume_router
 from routes.billing import router as billing_router   # NEW
 from routes.ideal_billing import router as ideal_router  # NEW: manual iDEAL (no-KvK interim)
+from routes.admin_metrics import router as admin_metrics_router  # NEW: read-only admin analytics
 from routes.presence import router as presence_router  # NEW: visitor tracking
 from auth.auth import router as auth_router
 
@@ -30,6 +31,7 @@ app.include_router(resume_router)
 app.include_router(auth_router,    prefix="/auth")
 app.include_router(billing_router, prefix="/billing")   # NEW
 app.include_router(ideal_router,   prefix="/ideal")     # NEW: manual iDEAL (no-KvK interim)
+app.include_router(admin_metrics_router, prefix="/ideal")  # NEW: GET /ideal/admin/metrics (read-only)
 app.include_router(presence_router, prefix="/presence")  # NEW: visitor tracking
 # Note: the Stripe webhook lives at POST /billing/webhook. Stripe calls it
 # server-to-server (no browser), so CORS does not apply and it must stay

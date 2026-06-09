@@ -569,6 +569,8 @@ export default function Dashboard() {
           </>
         ) : activePage === "Settings" ? (
           <SettingsPanel />
+        ) : activePage === "Admin:overview" ? (
+          <AdminPanel subpage="overview" />
         ) : activePage === "Admin:payments" ? (
           <AdminPanel subpage="payments" />
         ) : (

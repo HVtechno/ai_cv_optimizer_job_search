@@ -18,6 +18,7 @@ Limit semantics:
 """
 
 from typing import Optional
+import os
 
 
 # Canonical plan identifiers (stored on the user doc as `plan`)
@@ -112,6 +113,47 @@ def get_limits(plan: Optional[str]) -> dict:
     return PLAN_LIMITS[normalize_plan(plan)]
 
 
+# ── Admin override ────────────────────────────────────────────────────────────
+# Admins (identified by the SAME ADMIN_EMAILS env var the admin API gate uses)
+# are not customers and are not metered. effective_limits() short-circuits to an
+# unlimited set for them. This affects ONLY accounts whose email is in
+# ADMIN_EMAILS; every paying/free user is completely unaffected and continues to
+# resolve their normal plan limits below.
+#
+# The unlimited set is the Enterprise table with every numeric cap forced to None
+# (unlimited) and every feature flag on, so admins can use the whole app freely
+# without changing what Enterprise sells to real customers.
+_ADMIN_LIMITS = dict(PLAN_LIMITS[PLAN_ENTERPRISE])
+_ADMIN_LIMITS.update({
+    "label":                     "Admin",
+    "max_resumes":               None,
+    "max_job_matches":           None,
+    "max_refreshes_month":       None,
+    "max_refreshes_resume":      None,
+    "max_optimized_jobs_month":  None,
+    "max_optimized_jobs_resume": None,
+    "full_filtering":            True,
+    "full_ats_breakdown":        True,
+    "resume_rewrite":            True,
+    "cover_letter":              True,
+    "motivation_letter":         True,
+    "allow_regenerate":          True,
+    "pdf_export":                True,
+})
+
+
+def _admin_emails() -> set:
+    """Comma-separated ADMIN_EMAILS, lowercased. Same var the admin API uses."""
+    raw = os.getenv("ADMIN_EMAILS", "")
+    return {e.strip().lower() for e in raw.split(",") if e.strip()}
+
+
+def is_admin_user(user: Optional[dict]) -> bool:
+    """True iff this user's email is configured as an admin."""
+    email = (user or {}).get("email")
+    return bool(email) and str(email).lower() in _admin_emails()
+
+
 def effective_limits(user: Optional[dict]) -> dict:
     """
     Resolve the real limits for a user, applying any per-user enterprise
@@ -126,6 +168,13 @@ def effective_limits(user: Optional[dict]) -> dict:
     basic/pro user can never grant themselves more.
     """
     user = user or {}
+
+    # Admins are unlimited and unmetered. This guard is the ONLY behavioural
+    # change for admin accounts; for everyone else execution falls through to
+    # the unchanged plan-resolution logic below.
+    if is_admin_user(user):
+        return dict(_ADMIN_LIMITS)
+
     plan = normalize_plan(user.get("plan"))
     limits = dict(PLAN_LIMITS[plan])  # copy so we never mutate the master table
 

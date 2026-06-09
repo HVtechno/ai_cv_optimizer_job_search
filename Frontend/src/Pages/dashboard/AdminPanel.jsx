@@ -1,5 +1,6 @@
 import { useAuth } from "../../context/AuthContext";
 import IdealAdminPanel, { isAdminEmail } from "../../components/IdealAdminPanel";
+import AdminMetrics from "../../components/AdminMetrics";
 
 /**
  * AdminPanel — main-area content for the Admin sub-pages.
@@ -14,10 +15,11 @@ import IdealAdminPanel, { isAdminEmail } from "../../components/IdealAdminPanel"
  */
 
 const SUBPAGES = {
+  overview: { label: "Overview", render: () => <AdminMetrics /> },
   payments: { label: "Users payment queue", render: () => <IdealAdminPanel /> },
 };
 
-export default function AdminPanel({ subpage = "payments" }) {
+export default function AdminPanel({ subpage = "overview" }) {
   const { user } = useAuth();
   if (!isAdminEmail(user?.sub)) {
     return (
@@ -27,7 +29,7 @@ export default function AdminPanel({ subpage = "payments" }) {
     );
   }
 
-  const current = SUBPAGES[subpage] || SUBPAGES.payments;
+  const current = SUBPAGES[subpage] || SUBPAGES.overview;
 
   return (
     <div className="h-full w-full min-h-0 overflow-y-auto p-6">

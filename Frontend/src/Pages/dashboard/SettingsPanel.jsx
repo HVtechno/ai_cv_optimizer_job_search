@@ -6,6 +6,7 @@ import {
   fetchUsage, deleteAccount,
 } from "../../components/Billing";
 import IdealPanel from "../../components/IdealPanel";
+import { isAdminEmail } from "../../components/IdealAdminPanel";
 import FeedbackModal from "../../components/Feedbackmodal";
 
 /**
@@ -71,7 +72,8 @@ export default function SettingsPanel() {
     }
   };
 
-  const planLabel = { basic: "Free", pro: "Pro", enterprise: "Enterprise" }[plan] || "Free";
+  const isAdmin = isAdminEmail(user?.sub);
+  const planLabel = isAdmin ? "Admin" : ({ basic: "Free", pro: "Pro", enterprise: "Enterprise" }[plan] || "Free");
   const fmt = (v) => (v === null || v === undefined ? "Unlimited" : v);
 
   return (
@@ -120,8 +122,8 @@ export default function SettingsPanel() {
             <span style={{
               fontFamily: "var(--font-body)", fontSize: 11, fontWeight: 800,
               padding: "4px 12px", borderRadius: 100,
-              background: plan === "basic" ? "var(--border)" : "linear-gradient(135deg,var(--g1),var(--g2))",
-              color: plan === "basic" ? "var(--muted)" : "var(--dark)",
+              background: (!isAdmin && plan === "basic") ? "var(--border)" : "linear-gradient(135deg,var(--g1),var(--g2))",
+              color: (!isAdmin && plan === "basic") ? "var(--muted)" : "var(--dark)",
             }}>
               {planLabel.toUpperCase()}
             </span>
@@ -198,128 +200,144 @@ export default function SettingsPanel() {
 
         {/* Action card — depends on plan */}
         <div style={cardStyle}>
-          {plan === "basic" && (
+          {isAdmin ? (
             <>
-              <div style={sectionLabel}>Upgrade to Pro</div>
-              <p style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.7, marginBottom: 18, fontFamily: "var(--font-body)" }}>
-                Unlock AI resume rewriting, cover &amp; motivation letters, PDF export,
-                unlimited refreshes, and more job matches.
-              </p>
-
-              {/* Manual iDEAL payment panel (no-KvK interim). */}
-              <IdealPanel />
-            </>
-          )}
-
-          {plan === "pro" && (
-            <>
-              {/* IdealPanel shows the active-Pro status + contact note, and no
-                  request option while Pro is active. */}
-              <IdealPanel />
-            </>
-          )}
-
-          {plan === "enterprise" && (
-            <>
-              <div style={sectionLabel}>Enterprise plan</div>
+              <div style={sectionLabel}>Admin account</div>
               <p style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.7, fontFamily: "var(--font-body)" }}>
-                Your account is on a custom Enterprise plan. For changes to seats,
-                limits, or billing, contact{" "}
-                <a href="mailto:support@resuviq-ai.nl" style={{ color: "var(--g1)" }}>support@resuviq-ai.nl</a>.
+                You have full, unlimited access as an administrator. There's no plan or billing to manage on this account.
               </p>
+            </>
+          ) : (
+            <>
+              {plan === "basic" && (
+                <>
+                  <div style={sectionLabel}>Upgrade to Pro</div>
+                  <p style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.7, marginBottom: 18, fontFamily: "var(--font-body)" }}>
+                    Unlock AI resume rewriting, cover &amp; motivation letters, PDF export,
+                    unlimited refreshes, and more job matches.
+                  </p>
+
+                  {/* Manual iDEAL payment panel (no-KvK interim). */}
+                  <IdealPanel />
+                </>
+              )}
+
+              {plan === "pro" && (
+                <>
+                  {/* IdealPanel shows the active-Pro status + contact note, and no
+                      request option while Pro is active. */}
+                  <IdealPanel />
+                </>
+              )}
+
+              {plan === "enterprise" && (
+                <>
+                  <div style={sectionLabel}>Enterprise plan</div>
+                  <p style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.7, fontFamily: "var(--font-body)" }}>
+                    Your account is on a custom Enterprise plan. For changes to seats,
+                    limits, or billing, contact{" "}
+                    <a href="mailto:support@resuviq-ai.nl" style={{ color: "var(--g1)" }}>support@resuviq-ai.nl</a>.
+                  </p>
+                </>
+              )}
             </>
           )}
         </div>
 
 
-        {/* Feedback card */}
-        <div style={cardStyle}>
-          <div style={sectionLabel}>Feedback</div>
-          <p style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.7, marginBottom: 16, fontFamily: "var(--font-body)" }}>
-            Got a suggestion or something that didn't work well? We read every
-            piece of feedback and use it to decide what to build next.
-          </p>
-          <button
-            onClick={() => setShowFeedback(true)}
-            style={{
-              padding: "10px 18px", borderRadius: 10, cursor: "pointer",
-              fontSize: 13, fontWeight: 700, fontFamily: "var(--font-body)",
-              background: "transparent", color: "var(--g1)",
-              border: "1px solid rgba(0,232,122,0.4)",
-            }}
-          >
-            ★ Send feedback
-          </button>
-        </div>
-
-        {/* Danger zone — delete account */}
-        <div style={{ ...cardStyle, border: "1px solid rgba(255,80,80,0.28)", background: "rgba(255,80,80,0.04)" }}>
-          <div style={{ ...sectionLabel, color: "#ff7676" }}>Danger zone</div>
-          <p style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.7, marginBottom: 16, fontFamily: "var(--font-body)" }}>
-            Deleting your account is permanent. It removes your profile, all uploaded
-            resumes, their analyses and job matches, and cancels any active
-            subscription. This cannot be undone.
-          </p>
-
-          {!showDelete ? (
-            <button
-              onClick={() => setShowDelete(true)}
-              style={{
-                padding: "10px 18px", borderRadius: 10, cursor: "pointer",
-                fontSize: 13, fontWeight: 700, fontFamily: "var(--font-body)",
-                background: "transparent", color: "#ff7676",
-                border: "1px solid rgba(255,118,118,0.4)",
-              }}
-            >
-              Delete my account
-            </button>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <label style={{ fontSize: 12.5, color: "var(--muted)", fontFamily: "var(--font-body)" }}>
-                Type <strong style={{ color: "#ff7676" }}>DELETE</strong> to confirm:
-              </label>
-              <input
-                value={deleteConfirm}
-                onChange={(e) => setDeleteConfirm(e.target.value)}
-                placeholder="DELETE"
+        {/* Feedback card + Danger zone — hidden for admins (not applicable) */}
+        {!isAdmin && (
+          <>
+            {/* Feedback card */}
+            <div style={cardStyle}>
+              <div style={sectionLabel}>Feedback</div>
+              <p style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.7, marginBottom: 16, fontFamily: "var(--font-body)" }}>
+                Got a suggestion or something that didn't work well? We read every
+                piece of feedback and use it to decide what to build next.
+              </p>
+              <button
+                onClick={() => setShowFeedback(true)}
                 style={{
-                  padding: "10px 12px", borderRadius: 8, fontSize: 13,
-                  background: "rgba(0,0,0,0.3)", color: "var(--text)",
-                  border: "1px solid rgba(255,255,255,0.12)", fontFamily: "var(--font-body)",
-                  outline: "none", maxWidth: 240,
+                  padding: "10px 18px", borderRadius: 10, cursor: "pointer",
+                  fontSize: 13, fontWeight: 700, fontFamily: "var(--font-body)",
+                  background: "transparent", color: "var(--g1)",
+                  border: "1px solid rgba(0,232,122,0.4)",
                 }}
-              />
-              <div style={{ display: "flex", gap: 10 }}>
+              >
+                ★ Send feedback
+              </button>
+            </div>
+
+            {/* Danger zone — delete account */}
+            <div style={{ ...cardStyle, border: "1px solid rgba(255,80,80,0.28)", background: "rgba(255,80,80,0.04)" }}>
+              <div style={{ ...sectionLabel, color: "#ff7676" }}>Danger zone</div>
+              <p style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.7, marginBottom: 16, fontFamily: "var(--font-body)" }}>
+                Deleting your account is permanent. It removes your profile, all uploaded
+                resumes, their analyses and job matches, and cancels any active
+                subscription. This cannot be undone.
+              </p>
+
+              {!showDelete ? (
                 <button
-                  onClick={() => { setShowDelete(false); setDeleteConfirm(""); }}
-                  disabled={deleting}
+                  onClick={() => setShowDelete(true)}
                   style={{
                     padding: "10px 18px", borderRadius: 10, cursor: "pointer",
                     fontSize: 13, fontWeight: 700, fontFamily: "var(--font-body)",
-                    background: "transparent", color: "var(--muted)",
-                    border: "1px solid var(--border)",
+                    background: "transparent", color: "#ff7676",
+                    border: "1px solid rgba(255,118,118,0.4)",
                   }}
                 >
-                  Cancel
+                  Delete my account
                 </button>
-                <button
-                  onClick={handleDelete}
-                  disabled={deleting || deleteConfirm.trim().toUpperCase() !== "DELETE"}
-                  style={{
-                    padding: "10px 18px", borderRadius: 10,
-                    cursor: (deleting || deleteConfirm.trim().toUpperCase() !== "DELETE") ? "not-allowed" : "pointer",
-                    fontSize: 13, fontWeight: 700, fontFamily: "var(--font-body)",
-                    background: deleteConfirm.trim().toUpperCase() === "DELETE" ? "#ff5050" : "rgba(255,80,80,0.3)",
-                    color: "#fff", border: "none",
-                    opacity: deleting ? 0.7 : 1,
-                  }}
-                >
-                  {deleting ? "Deleting…" : "Permanently delete"}
-                </button>
-              </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  <label style={{ fontSize: 12.5, color: "var(--muted)", fontFamily: "var(--font-body)" }}>
+                    Type <strong style={{ color: "#ff7676" }}>DELETE</strong> to confirm:
+                  </label>
+                  <input
+                    value={deleteConfirm}
+                    onChange={(e) => setDeleteConfirm(e.target.value)}
+                    placeholder="DELETE"
+                    style={{
+                      padding: "10px 12px", borderRadius: 8, fontSize: 13,
+                      background: "rgba(0,0,0,0.3)", color: "var(--text)",
+                      border: "1px solid rgba(255,255,255,0.12)", fontFamily: "var(--font-body)",
+                      outline: "none", maxWidth: 240,
+                    }}
+                  />
+                  <div style={{ display: "flex", gap: 10 }}>
+                    <button
+                      onClick={() => { setShowDelete(false); setDeleteConfirm(""); }}
+                      disabled={deleting}
+                      style={{
+                        padding: "10px 18px", borderRadius: 10, cursor: "pointer",
+                        fontSize: 13, fontWeight: 700, fontFamily: "var(--font-body)",
+                        background: "transparent", color: "var(--muted)",
+                        border: "1px solid var(--border)",
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleDelete}
+                      disabled={deleting || deleteConfirm.trim().toUpperCase() !== "DELETE"}
+                      style={{
+                        padding: "10px 18px", borderRadius: 10,
+                        cursor: (deleting || deleteConfirm.trim().toUpperCase() !== "DELETE") ? "not-allowed" : "pointer",
+                        fontSize: 13, fontWeight: 700, fontFamily: "var(--font-body)",
+                        background: deleteConfirm.trim().toUpperCase() === "DELETE" ? "#ff5050" : "rgba(255,80,80,0.3)",
+                        color: "#fff", border: "none",
+                        opacity: deleting ? 0.7 : 1,
+                      }}
+                    >
+                      {deleting ? "Deleting…" : "Permanently delete"}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          </>
+        )}
       </div>
 
       {/* Feedback modal (Settings entry point — no cooldown) */}
