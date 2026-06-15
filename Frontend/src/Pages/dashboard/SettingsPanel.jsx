@@ -8,6 +8,7 @@ import {
 import IdealPanel from "../../components/IdealPanel";
 import { isAdminEmail } from "../../components/IdealAdminPanel";
 import FeedbackModal from "../../components/Feedbackmodal";
+import api from "../../components/api";
 
 /**
  * SettingsPanel — the "Settings" page rendered inside Dashboard.
@@ -32,6 +33,18 @@ export default function SettingsPanel() {
 
   // Feedback modal (Settings link entry point).
   const [showFeedback, setShowFeedback] = useState(false);
+  const [isContributor, setIsContributor] = useState(false);
+  // Admin contact email shown to contributors — read from the same env var the
+  // admin gate uses (first entry if multiple). No hardcoding.
+  const adminContact = (import.meta.env.VITE_ADMIN_EMAILS || "")
+    .split(",").map((e) => e.trim()).filter(Boolean)[0] || "your administrator";
+  useEffect(() => {
+    let alive = true;
+    api.get("/team/check")
+      .then((r) => { if (alive) setIsContributor(Boolean(r.data?.is_contributor)); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
 
   const activeResumeId =
     typeof window !== "undefined" ? localStorage.getItem("active_resume_id") : null;
@@ -73,7 +86,7 @@ export default function SettingsPanel() {
   };
 
   const isAdmin = isAdminEmail(user?.sub);
-  const planLabel = isAdmin ? "Admin" : ({ basic: "Free", pro: "Pro", enterprise: "Enterprise" }[plan] || "Free");
+  const planLabel = isAdmin ? "Admin" : isContributor ? "Contributor" : ({ basic: "Free", pro: "Pro", enterprise: "Enterprise" }[plan] || "Free");
   const fmt = (v) => (v === null || v === undefined ? "Unlimited" : v);
 
   return (
@@ -122,8 +135,8 @@ export default function SettingsPanel() {
             <span style={{
               fontFamily: "var(--font-body)", fontSize: 11, fontWeight: 800,
               padding: "4px 12px", borderRadius: 100,
-              background: (!isAdmin && plan === "basic") ? "var(--border)" : "linear-gradient(135deg,var(--g1),var(--g2))",
-              color: (!isAdmin && plan === "basic") ? "var(--muted)" : "var(--dark)",
+              background: (!isAdmin && !isContributor && plan === "basic") ? "var(--border)" : "linear-gradient(135deg,var(--g1),var(--g2))",
+              color: (!isAdmin && !isContributor && plan === "basic") ? "var(--muted)" : "var(--dark)",
             }}>
               {planLabel.toUpperCase()}
             </span>
@@ -207,6 +220,16 @@ export default function SettingsPanel() {
                 You have full, unlimited access as an administrator. There's no plan or billing to manage on this account.
               </p>
             </>
+          ) : isContributor ? (
+            <>
+              <div style={sectionLabel}>Contributor account</div>
+              <p style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.7, fontFamily: "var(--font-body)" }}>
+                You have full, unlimited access as a Contributor — limited to Dashboard
+                &amp; Batch, without admin rights. There's no plan or billing to manage on
+                this account. For any details, contact your administrator at{" "}
+                <a href={`mailto:${adminContact}`} style={{ color: "var(--g1)" }}>{adminContact}</a>.
+              </p>
+            </>
           ) : (
             <>
               {plan === "basic" && (
@@ -245,8 +268,9 @@ export default function SettingsPanel() {
         </div>
 
 
-        {/* Feedback card + Danger zone — hidden for admins (not applicable) */}
-        {!isAdmin && (
+        {/* Feedback card + Danger zone — hidden for admins and contributors
+            (team accounts; account management is handled by the admin) */}
+        {!isAdmin && !isContributor && (
           <>
             {/* Feedback card */}
             <div style={cardStyle}>

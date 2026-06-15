@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { isAdminEmail } from "../../components/IdealAdminPanel";
+import api from "../../components/api";
 
 /**
  * Sidebar — Dashboard / Settings nav, plan badge, and an expandable "Admin"
@@ -13,19 +14,37 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, activePage, setAc
   const { user, logout, plan } = useAuth();
   const navigate = useNavigate();
   const isAdmin = isAdminEmail(user?.sub);
+  // Contributor role (internal team) — fetched from /team/check. Contributors
+  // get Dashboard + Batch + Settings, but NOT admin pages.
+  const [isContributor, setIsContributor] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    api.get("/team/check")
+      .then((r) => { if (alive) setIsContributor(Boolean(r.data?.is_contributor)); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [user?.sub]);
+
   // Admin group starts expanded if you're already on an Admin sub-page.
   const [adminOpen, setAdminOpen] = useState(() => String(activePage).startsWith("Admin"));
 
-  const planLabel = isAdmin ? "ADMIN" : ({ basic: "FREE", pro: "PRO", enterprise: "ENT" }[plan] || "FREE");
-  const isPaid = isAdmin || plan === "pro" || plan === "enterprise";
+  const planLabel = isAdmin ? "ADMIN"
+    : isContributor ? "TEAM"
+    : ({ basic: "FREE", pro: "PRO", enterprise: "ENT" }[plan] || "FREE");
+  const isPaid = isAdmin || isContributor || plan === "pro" || plan === "enterprise";
 
-  // Top-level items shown to everyone.
-  const navItems = ["Dashboard", "Settings"];
+  // Top-level items. Contributors and enterprise (and admins) get the Batch tab.
+  const navItems = (isAdmin || isContributor || plan === "enterprise")
+    ? ["Dashboard", "Batch", "Settings"]
+    : ["Dashboard", "Settings"];
 
   // Admin sub-pages (add more here later).
   const adminSubpages = [
     { id: "Admin:overview", label: "Overview" },
     { id: "Admin:payments", label: "Users payment queue" },
+    { id: "Admin:batches", label: "Batch jobs (all orgs)" },
+    { id: "Admin:usage", label: "Token-o-meter" },
+    { id: "Admin:team", label: "Team & access" },
   ];
 
   return (

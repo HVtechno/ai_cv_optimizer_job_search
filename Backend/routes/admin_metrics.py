@@ -808,15 +808,33 @@ async def admin_jobs(
     total = _safe_count(db.jobs, query)
     rows = []
     try:
-        for j in (
-            db.jobs.find(query, _JOB_FIELDS)
-            .sort(field, direction)
-            .skip(skip)
-            .limit(limit)
-        ):
+        # Primary: aggregation with allowDiskUse for the sort.
+        pipeline = [
+            {"$match": query},
+            {"$sort": {field: direction}},
+            {"$skip": skip},
+            {"$limit": limit},
+            {"$project": _JOB_FIELDS},
+        ]
+        for j in db.jobs.aggregate(pipeline, allowDiskUse=True):
             rows.append(_iso_doc(j, "postedAt", "expireAt"))
     except Exception as e:
-        print(f"[admin_metrics] jobs list failed: {e}")
+        # Some shared Atlas tiers reject allowDiskUse, so a deep sort on an
+        # unindexed field hits the 32MB cap. Fall back to a sort on _id (always
+        # indexed) so the page still loads. Add an index on the sort fields in
+        # Atlas to restore exact ordering AND remove this memory pressure.
+        print(f"[admin_metrics] jobs sort fell back to _id (reason: {e})")
+        rows = []
+        try:
+            for j in (
+                db.jobs.find(query, _JOB_FIELDS)
+                .sort("_id", direction)
+                .skip(skip)
+                .limit(limit)
+            ):
+                rows.append(_iso_doc(j, "postedAt", "expireAt"))
+        except Exception as e2:
+            print(f"[admin_metrics] jobs list failed (fallback too): {e2}")
     return {"total": total, "skip": skip, "limit": limit, "sort": field,
             "order": "asc" if direction == 1 else "desc", "jobs": rows}
 

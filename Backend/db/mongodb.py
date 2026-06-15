@@ -35,6 +35,15 @@ class MongoDB:
             inst.visits            = inst.db["visits"]            # active-visitor presence sessions
             inst.visits.create_index("last_seen", expireAfterSeconds=86400)
             inst.visits.create_index("vid", unique=True)
+            # Indexes for the admin "Jobs in pool" list: sorting these fields on
+            # the full pool otherwise exceeds Mongo's 32MB in-memory sort cap on
+            # deep pages. An index lets the sort use it (no memory/disk sort),
+            # which works on every Atlas tier. Cheap to build; idempotent.
+            try:
+                for _f in ("postedAt", "expireAt", "title", "companyName", "location"):
+                    inst.jobs.create_index(_f)
+            except Exception as _e:
+                print(f"[mongodb] jobs sort-index setup skipped: {_e}")
 
             cls._instance = inst
         return cls._instance

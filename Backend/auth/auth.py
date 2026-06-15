@@ -65,6 +65,24 @@ async def signup(data: dict):
         "created_at":             datetime.now(timezone.utc),
     })
 
+    # If an admin pre-granted contributor access to this email before they
+    # signed up, apply it now and clear the pending record. (Additive: only
+    # affects emails the admin explicitly invited.)
+    try:
+        pending = db.db["pending_contributors"].find_one({"email": email})
+        if pending:
+            db.users.update_one(
+                {"email": email},
+                {"$set": {
+                    "role": "contributor",
+                    "contributor_since": pending.get("contributor_since"),
+                    "contributor_by": pending.get("contributor_by"),
+                }},
+            )
+            db.db["pending_contributors"].delete_one({"email": email})
+    except Exception as _e:
+        print(f"[signup] pending contributor apply skipped: {_e}")
+
     # Fire the verification email. We don't fail signup if mail sending hiccups —
     # the user can request a resend, and login will resend too.
     send_verification_email(email, create_verification_token(email))
@@ -82,6 +100,12 @@ async def login(data: dict):
 
     user = db.users.find_one({"email": email})
     if not user:
+        raise HTTPException(status_code=404, detail="USER_NOT_FOUND")
+
+    # Defensive: a user doc with no password is not a completed registration
+    # (e.g. a legacy/partial record). Treat as not-registered instead of
+    # crashing on user["password"].
+    if not user.get("password"):
         raise HTTPException(status_code=404, detail="USER_NOT_FOUND")
 
     if not verify_password(password, user["password"]):

@@ -294,3 +294,70 @@ def send_pro_activated_email(to_email: str, period_days: int = 30, period_end: s
         f"Questions? support@resuviq-ai.nl"
     )
     return _send(to_email, subject, html, text)
+
+
+def send_contributor_access_email(to_email: str, inviter: str | None = None) -> bool:
+    """Notify a team member that an admin granted them contributor access.
+    Additive — follows the same _wrap/_send pattern as the other emails."""
+    subject = f"You've been given contributor access on {BRAND}"
+    by = f" by {inviter}" if inviter else ""
+    html = _wrap(
+        title="You're now a contributor",
+        intro=(
+            f"An administrator{by} has granted you <b>contributor</b> access on "
+            f"{BRAND}. You now have full access to the dashboard, batch job runner, "
+            f"and settings, with unlimited resume uploads, rewrites, optimizations, "
+            f"and cover &amp; motivation letters. Log in with this email address to "
+            f"get started."
+        ),
+        button_label="Open Resuviq AI",
+        button_url=FRONTEND_URL,
+        footer_note=(
+            "If you don't yet have an account, sign up with this same email "
+            "address and your contributor access will apply automatically."
+        ),
+    )
+    text = (
+        f"You're now a contributor on {BRAND}!\n\n"
+        f"An administrator{by} has granted you contributor access. You now have "
+        f"full access to the dashboard, batch job runner, and settings, with "
+        f"unlimited uploads, rewrites, optimizations, and cover & motivation letters.\n\n"
+        f"Log in with this email address: {FRONTEND_URL}\n\n"
+        f"If you don't have an account yet, sign up with this same email and your "
+        f"access will apply automatically.\n\n"
+        f"Questions? support@resuviq-ai.nl"
+    )
+    return _send(to_email, subject, html, text)
+
+
+def send_contributor_removed_email(to_email: str, remover: str | None = None) -> bool:
+    """Notify a team member that their contributor access was revoked by an admin.
+    They remain a registered free user — their account and data are untouched."""
+    subject = f"Your access level on {BRAND} has changed"
+    by = f" by {remover}" if remover else ""
+    html = _wrap(
+        title="Your contributor access has been removed",
+        intro=(
+            f"An administrator{by} has removed your <b>contributor</b> access on "
+            f"{BRAND}. Your account is still active, but you are now on the free "
+            f"plan with its standard limits. Your existing resumes and data remain "
+            f"in your account. If you think this was a mistake, please reach out to "
+            f"your administrator."
+        ),
+        button_label="Open Resuviq AI",
+        button_url=FRONTEND_URL,
+        footer_note=(
+            "You can keep using Resuviq AI as a free user, or upgrade any time "
+            "from your account settings."
+        ),
+    )
+    text = (
+        f"Your access level on {BRAND} has changed.\n\n"
+        f"An administrator{by} has removed your contributor access. Your account "
+        f"is still active, but you are now on the free plan with its standard "
+        f"limits. Your existing resumes and data remain in your account.\n\n"
+        f"If you think this was a mistake, please contact your administrator.\n\n"
+        f"Open {BRAND}: {FRONTEND_URL}\n\n"
+        f"Questions? support@resuviq-ai.nl"
+    )
+    return _send(to_email, subject, html, text)

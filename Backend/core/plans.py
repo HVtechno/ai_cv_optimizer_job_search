@@ -154,6 +154,13 @@ def is_admin_user(user: Optional[dict]) -> bool:
     return bool(email) and str(email).lower() in _admin_emails()
 
 
+def is_contributor(user: Optional[dict]) -> bool:
+    """True iff this user has been granted the 'contributor' team role.
+    Contributors are internal team members: full PRODUCT access (unlimited),
+    but NOT admin-page access (that stays email-based via is_admin_user)."""
+    return (user or {}).get("role") == "contributor"
+
+
 def effective_limits(user: Optional[dict]) -> dict:
     """
     Resolve the real limits for a user, applying any per-user enterprise
@@ -173,6 +180,12 @@ def effective_limits(user: Optional[dict]) -> dict:
     # change for admin accounts; for everyone else execution falls through to
     # the unchanged plan-resolution logic below.
     if is_admin_user(user):
+        return dict(_ADMIN_LIMITS)
+
+    # Contributors (internal team) get full product access — same unlimited set
+    # as admins — but they are NOT admins (no admin-page access; that is decided
+    # separately by is_admin_user).
+    if is_contributor(user):
         return dict(_ADMIN_LIMITS)
 
     plan = normalize_plan(user.get("plan"))

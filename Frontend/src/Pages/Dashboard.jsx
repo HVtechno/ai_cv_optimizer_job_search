@@ -14,6 +14,9 @@ import JobsTable from "./dashboard/JobsTable";
 import AnalysisPanel from "./dashboard/AnalysisPanel";
 import SettingsPanel from "./dashboard/SettingsPanel";
 import AdminPanel from "./dashboard/AdminPanel";
+import BatchPanel from "./BatchPanel";   // NEW: enterprise batch jobs panel
+import TokenMeter from "./TokenMeter";   // NEW: admin token-o-meter
+import TeamPanel from "./TeamPanel";     // NEW: admin team / contributor management
 import { normalizeJob, startFakeProgress } from "./dashboard/dashboardUtils";
 
 export default function Dashboard() {
@@ -569,10 +572,18 @@ export default function Dashboard() {
           </>
         ) : activePage === "Settings" ? (
           <SettingsPanel />
+        ) : activePage === "Batch" ? (
+          <BatchPanel />
         ) : activePage === "Admin:overview" ? (
           <AdminPanel subpage="overview" />
         ) : activePage === "Admin:payments" ? (
           <AdminPanel subpage="payments" />
+        ) : activePage === "Admin:batches" ? (
+          <BatchPanel admin={true} />
+        ) : activePage === "Admin:usage" ? (
+          <TokenMeter />
+        ) : activePage === "Admin:team" ? (
+          <TeamPanel />
         ) : (
           <div className="h-full w-full flex items-center justify-center text-gray-500">{activePage}</div>
         )}
