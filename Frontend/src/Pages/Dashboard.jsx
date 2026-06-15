@@ -14,7 +14,7 @@ import JobsTable from "./dashboard/JobsTable";
 import AnalysisPanel from "./dashboard/AnalysisPanel";
 import SettingsPanel from "./dashboard/SettingsPanel";
 import AdminPanel from "./dashboard/AdminPanel";
-import BatchPanel from "./BatchPanel";   // NEW: enterprise batch jobs panel
+import BatchPanel from "./Batchpanel";   // NEW: enterprise batch jobs panel
 import TokenMeter from "./TokenMeter";   // NEW: admin token-o-meter
 import TeamPanel from "./TeamPanel";     // NEW: admin team / contributor management
 import { normalizeJob, startFakeProgress } from "./dashboard/dashboardUtils";
