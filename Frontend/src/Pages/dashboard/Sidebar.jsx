@@ -119,8 +119,8 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, activePage, setAc
 
       <div className="p-2 border-t border-gray-800">
         <button onClick={() => { logout(); navigate("/"); }}
-          className="w-full text-left p-2 hover:bg-red-500/20 text-red-400 rounded text-sm">
-          {sidebarOpen ? "Logout" : "⏻"}
+          className={`w-full p-2 hover:bg-red-500/20 text-red-400 rounded text-sm ${sidebarOpen ? "text-left" : "text-center"}`}>
+          {sidebarOpen ? "🚪 Logout" : "🚪"}
         </button>
       </div>
     </div>
