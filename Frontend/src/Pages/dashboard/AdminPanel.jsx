@@ -1,6 +1,7 @@
 import { useAuth } from "../../context/AuthContext";
 import IdealAdminPanel, { isAdminEmail } from "../../components/IdealAdminPanel";
 import AdminMetrics from "../../components/AdminMetrics";
+import PromptAdminPanel from "../../components/PromptAdminPanel";
 
 /**
  * AdminPanel — main-area content for the Admin sub-pages.
@@ -17,6 +18,7 @@ import AdminMetrics from "../../components/AdminMetrics";
 const SUBPAGES = {
   overview: { label: "Overview", render: () => <AdminMetrics /> },
   payments: { label: "Users payment queue", render: () => <IdealAdminPanel /> },
+  prompts: { label: "Prompt registry", render: () => <PromptAdminPanel /> },
 };
 
 export default function AdminPanel({ subpage = "overview" }) {

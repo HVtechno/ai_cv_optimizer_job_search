@@ -361,3 +361,46 @@ def send_contributor_removed_email(to_email: str, remover: str | None = None) ->
         f"Questions? support@resuviq-ai.nl"
     )
     return _send(to_email, subject, html, text)
+
+
+# ── Public: prompt-deployment notice to the team (Phase 5) ────────────────────
+# Sent immediately when an admin SCHEDULES a prompt deploy for the weekend. It
+# tells the team a new version goes live at the given CET slot so they can save
+# their work. Informational only — no link/button needed. Best-effort like all
+# other sends; a mail failure never blocks the scheduling action.
+
+def send_deployment_notice_email(
+    to_email: str,
+    deploy_when_cet: str,
+    items_summary: str,
+    scheduled_by: str | None = None,
+) -> bool:
+    subject = f"{BRAND}: scheduled prompt update on {deploy_when_cet} CET"
+    by = f" by {scheduled_by}" if scheduled_by else ""
+    body_html = (
+        f"A new prompt configuration has been scheduled{by} to go live on "
+        f"<b>{deploy_when_cet} CET</b>.<br><br>"
+        f"<b>What's changing:</b><br>{items_summary}<br><br>"
+        f"Please save and finish any in-progress work before that time. The "
+        f"update is applied automatically at the scheduled slot; no action is "
+        f"needed from you. If you have concerns, contact your administrator "
+        f"before the deployment window."
+    )
+    html = _wrap_plain(
+        title="Scheduled prompt update",
+        body_html=body_html,
+        footer_note=(
+            "You're receiving this because you're a team member on "
+            f"{BRAND}. This is an informational notice about a scheduled change."
+        ),
+    )
+    text = (
+        f"{BRAND}: scheduled prompt update\n\n"
+        f"A new prompt configuration has been scheduled{by} to go live on "
+        f"{deploy_when_cet} CET.\n\n"
+        f"What's changing:\n{items_summary}\n\n"
+        f"Please save and finish any in-progress work before that time. The "
+        f"update applies automatically; no action is needed.\n\n"
+        f"Questions? support@resuviq-ai.nl"
+    )
+    return _send(to_email, subject, html, text)

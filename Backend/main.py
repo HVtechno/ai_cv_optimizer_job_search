@@ -39,6 +39,8 @@ from routes.usage_routes import router as usage_router  # NEW: admin token-o-met
 app.include_router(usage_router)
 from routes.team_routes import router as team_router  # NEW: team / contributor mgmt
 app.include_router(team_router)
+from routes.prompt_admin import router as prompt_admin_router  # NEW: prompt registry (admin)
+app.include_router(prompt_admin_router, prefix="/prompts")  # NEW: GET/POST /prompts/* (admin-gated)
 
 
 # NEW: in-process batch scheduler (APScheduler). No extra paid service; relies on

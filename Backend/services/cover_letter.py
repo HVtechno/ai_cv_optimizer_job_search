@@ -5,6 +5,7 @@ Both use GPT-4o with structured prompts tailored to the job.
 
 import json
 from core.openai_client import client, CHAT_MODEL
+from prompts.active_prompt import active   # Phase 3: registry-or-constant resolver
 
 
 # ── Cover Letter ──────────────────────────────────────────────────────────────
@@ -102,8 +103,8 @@ async def generate_cover_letter(
             temperature=0.4,
             max_tokens=800,
             messages=[
-                {"role": "system", "content": COVER_LETTER_SYSTEM + lang_directive},
-                {"role": "user",   "content": COVER_LETTER_PROMPT.format(
+                {"role": "system", "content": active("cover.letter_system", COVER_LETTER_SYSTEM) + lang_directive},
+                {"role": "user",   "content": active("cover.letter_prompt", COVER_LETTER_PROMPT).format(
                     candidate_name=candidate_name,
                     ats_score=ats_data.get("score", 0),
                     strong_skills=", ".join(ats_data.get("strong_skills", [])),
@@ -136,8 +137,8 @@ async def generate_motivation_letter(
             temperature=0.45,
             max_tokens=1000,
             messages=[
-                {"role": "system", "content": MOTIVATION_LETTER_SYSTEM + lang_directive},
-                {"role": "user",   "content": MOTIVATION_LETTER_PROMPT.format(
+                {"role": "system", "content": active("cover.motivation_system", MOTIVATION_LETTER_SYSTEM) + lang_directive},
+                {"role": "user",   "content": active("cover.motivation_prompt", MOTIVATION_LETTER_PROMPT).format(
                     candidate_name=candidate_name,
                     strong_skills=", ".join(ats_data.get("strong_skills", [])),
                     matched_keywords=", ".join(ats_data.get("matched_keywords", [])[:10]),

@@ -73,6 +73,17 @@ async def _poll_and_run():
             store.set_status(batch["batch_id"], "completed")
 
 
+async def _poll_prompt_deploys():
+    """Phase 5: apply any weekend-scheduled prompt deploys that are now due.
+    Isolated from batch polling — wrapped so a failure here never affects batches
+    or the app. Cheap: one indexed Mongo query per minute unless work is due."""
+    try:
+        from prompts.deploy_scheduler import apply_due_deploys
+        apply_due_deploys()
+    except Exception as e:
+        print(f"[scheduler] prompt-deploy poll skipped (non-fatal): {e}")
+
+
 def start_scheduler():
     global _scheduler
     if _scheduler is not None:
@@ -81,6 +92,10 @@ def start_scheduler():
     # One poller, every minute. Cheap: it only hits Mongo unless work is due.
     _scheduler.add_job(_poll_and_run, "interval", minutes=1,
                        id="batch_poller", max_instances=1, coalesce=True)
+    # Phase 5: separate 1-min poller that applies weekend-scheduled prompt
+    # deploys. Independent job so it can't interfere with batch polling.
+    _scheduler.add_job(_poll_prompt_deploys, "interval", minutes=1,
+                       id="prompt_deploy_poller", max_instances=1, coalesce=True)
     _scheduler.start()
     print("✅ Batch scheduler started (in-process APScheduler, 1-min poll)")
 

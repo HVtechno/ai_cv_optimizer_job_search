@@ -20,6 +20,7 @@ import json
 import asyncio
 import numpy as np
 from core.openai_client import json_completion, client, FAST_MODEL, SKILL_MODEL
+from prompts.active_prompt import active   # Phase 3: registry-or-constant resolver
 
 
 STOP_WORDS = {
@@ -358,7 +359,7 @@ async def classify_skills(resume_text: str, jd_text: str) -> tuple[list, list, l
             await asyncio.sleep(base_delay)
         try:
             raw  = await json_completion(
-                SKILL_PROMPT.format(resume=resume_text[:3000], jd=jd_text[:2000]),
+                active("ats.skill_prompt", SKILL_PROMPT).format(resume=resume_text[:3000], jd=jd_text[:2000]),
                 model=SKILL_MODEL,
             )
             data = json.loads(raw)
@@ -405,8 +406,8 @@ async def generate_summary(resume_text: str, jd_text: str) -> str:
         response = await client.chat.completions.create(
             model=FAST_MODEL, temperature=0.3, max_tokens=400,
             messages=[
-                {"role": "system", "content": SUMMARY_SYSTEM},
-                {"role": "user",   "content": SUMMARY_PROMPT.format(
+                {"role": "system", "content": active("ats.summary_system", SUMMARY_SYSTEM)},
+                {"role": "user",   "content": active("ats.summary_prompt", SUMMARY_PROMPT).format(
                     resume=resume_text[:3000], jd=jd_text[:2000])},
             ],
         )

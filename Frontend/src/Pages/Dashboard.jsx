@@ -584,6 +584,8 @@ export default function Dashboard() {
           <TokenMeter />
         ) : activePage === "Admin:team" ? (
           <TeamPanel />
+        ) : activePage === "Admin:prompts" ? (
+          <AdminPanel subpage="prompts" />
         ) : (
           <div className="h-full w-full flex items-center justify-center text-gray-500">{activePage}</div>
         )}

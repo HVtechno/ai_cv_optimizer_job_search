@@ -14,6 +14,7 @@ Goal: push interview probability up by at least one level (Lowâ†’Medium, Mediumâ
 import json
 import asyncio
 from core.openai_client import client, CHAT_MODEL
+from prompts.active_prompt import active   # Phase 3: registry-or-constant resolver
 
 
 MAX_TOKENS = 6000
@@ -237,16 +238,16 @@ async def _llm(messages: list, max_tokens: int = MAX_TOKENS, temperature: float 
 
 async def extract_all_sections(resume_text: str) -> dict:
     raw = await _llm([
-        {"role": "system", "content": EXTRACT_SYSTEM},
-        {"role": "user",   "content": EXTRACT_PROMPT.format(resume=resume_text)},
+        {"role": "system", "content": active("rewriter.extract_system", EXTRACT_SYSTEM)},
+        {"role": "user",   "content": active("rewriter.extract_prompt", EXTRACT_PROMPT).format(resume=resume_text)},
     ], temperature=0)
     return json.loads(raw)
 
 
 async def analyze_gap(resume_text: str, jd_text: str, ats_data: dict) -> dict:
     raw = await _llm([
-        {"role": "system", "content": GAP_SYSTEM},
-        {"role": "user",   "content": GAP_PROMPT.format(
+        {"role": "system", "content": active("rewriter.gap_system", GAP_SYSTEM)},
+        {"role": "user",   "content": active("rewriter.gap_prompt", GAP_PROMPT).format(
             resume=resume_text,
             jd=jd_text,
             ats_score=ats_data.get("score", 0),
@@ -284,8 +285,8 @@ async def rewrite_section(
         content_raw = "\n".join(str(x) for x in content_raw)
 
     rewritten = await _llm([
-        {"role": "system", "content": REWRITE_SYSTEM},
-        {"role": "user",   "content": REWRITE_PROMPT.format(
+        {"role": "system", "content": active("rewriter.rewrite_system", REWRITE_SYSTEM)},
+        {"role": "user",   "content": active("rewriter.rewrite_prompt", REWRITE_PROMPT).format(
             section_type=section["section_type"],
             section_title=section["section_title"],
             target_language=target_language,
@@ -323,8 +324,8 @@ async def assemble_resume(
     missing_skills    = ", ".join(ats_data.get("missing_skills", []))
 
     raw = await _llm([
-        {"role": "system", "content": ASSEMBLE_SYSTEM},
-        {"role": "user",   "content": ASSEMBLE_PROMPT.format(
+        {"role": "system", "content": active("rewriter.assemble_system", ASSEMBLE_SYSTEM)},
+        {"role": "user",   "content": active("rewriter.assemble_prompt", ASSEMBLE_PROMPT).format(
             name=candidate_name,
             contact=contact,
             target_language=target_language,

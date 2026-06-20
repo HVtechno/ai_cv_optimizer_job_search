@@ -252,7 +252,7 @@ function Drawer({ open, config, onClose }) {
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             {config.exportColumns && (
               <button onClick={doExport} disabled={exporting}
-                style={{ background: "linear-gradient(135deg,var(--g1),var(--g2))", border: "none", color: "var(--dark, #0a0f0d)", borderRadius: 8, padding: "5px 12px", cursor: exporting ? "wait" : "pointer", fontSize: 13, fontWeight: 700, opacity: exporting ? 0.7 : 1 }}>
+                style={{ background: "linear-gradient(135deg,var(--g1),var(--g2))", border: "none", color: "var(--muted)", borderRadius: 8, padding: "5px 12px", cursor: exporting ? "wait" : "pointer", fontSize: 13, fontWeight: 700, opacity: exporting ? 0.7 : 1 }}>
                 {exporting ? "Exporting…" : "Export CSV"}
               </button>
             )}

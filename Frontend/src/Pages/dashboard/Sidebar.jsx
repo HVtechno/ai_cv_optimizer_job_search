@@ -45,6 +45,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, activePage, setAc
     { id: "Admin:batches", label: "Batch jobs (all orgs)" },
     { id: "Admin:usage", label: "Token-o-meter" },
     { id: "Admin:team", label: "Team & access" },
+    { id: "Admin:prompts", label: "Prompt registry" },
   ];
 
   return (
