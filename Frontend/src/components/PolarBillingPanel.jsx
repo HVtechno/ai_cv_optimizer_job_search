@@ -55,7 +55,7 @@ export default function PolarBillingPanel() {
 
   const isPro = sub?.plan === "pro";
   const periodEnd = sub?.current_period_end
-    ? new Date(sub.current_period_end).toLocaleDateString()
+    ? new Date(sub.current_period_end).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
     : null;
 
   // Active Pro: show status, never the upgrade button.
