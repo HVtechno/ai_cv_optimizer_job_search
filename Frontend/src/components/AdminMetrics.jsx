@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import api from "./api";
 import { useAuth } from "../context/AuthContext";
 import { isAdminEmail } from "./IdealAdminPanel";
+import PolarSubscriptionsPanel from "./PolarSubscriptionsPanel";  // NEW: read-only Polar subs view
 
 /**
  * AdminMetrics — admin analytics overview with drill-downs.
@@ -642,6 +643,9 @@ export default function AdminMetrics() {
             <div style={{ fontSize: 11.5, color: "var(--muted)", textTransform: "uppercase", letterSpacing: 0.6, fontWeight: 700, marginBottom: 10 }}>Registrations · last 14 days</div>
             <TrendBars data={m.users.registrations_by_day} />
           </div>
+
+          {/* Read-only Polar subscribers (additive; loads with the page, no separate refresh). */}
+          <PolarSubscriptionsPanel />
 
           <div style={sectionTitle}>Visitors</div>
           <div style={grid}>

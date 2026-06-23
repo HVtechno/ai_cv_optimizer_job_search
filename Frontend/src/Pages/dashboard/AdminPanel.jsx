@@ -1,5 +1,5 @@
 import { useAuth } from "../../context/AuthContext";
-import IdealAdminPanel, { isAdminEmail } from "../../components/IdealAdminPanel";
+import { isAdminEmail } from "../../components/IdealAdminPanel";
 import AdminMetrics from "../../components/AdminMetrics";
 import PromptAdminPanel from "../../components/PromptAdminPanel";
 
@@ -17,7 +17,9 @@ import PromptAdminPanel from "../../components/PromptAdminPanel";
 
 const SUBPAGES = {
   overview: { label: "Overview", render: () => <AdminMetrics /> },
-  payments: { label: "Users payment queue", render: () => <IdealAdminPanel /> },
+  // payments queue (manual iDEAL approval) hidden — Polar grants Pro
+  // automatically via webhook, so there is nothing to approve. IdealAdminPanel
+  // remains in the repo (and still exports isAdminEmail used across the app).
   prompts: { label: "Prompt registry", render: () => <PromptAdminPanel /> },
 };
 

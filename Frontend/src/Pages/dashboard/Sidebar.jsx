@@ -41,7 +41,8 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen, activePage, setAc
   // Admin sub-pages (add more here later).
   const adminSubpages = [
     { id: "Admin:overview", label: "Overview" },
-    { id: "Admin:payments", label: "Users payment queue" },
+    // "Users payment queue" (manual iDEAL approval) hidden — Polar grants Pro
+    // automatically via webhook. Re-add this line to restore the queue.
     { id: "Admin:batches", label: "Batch jobs (all orgs)" },
     { id: "Admin:usage", label: "Token-o-meter" },
     { id: "Admin:team", label: "Team & access" },

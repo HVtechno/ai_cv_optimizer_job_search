@@ -51,7 +51,13 @@ def _as_aware_utc(value) -> Optional[datetime]:
 
 
 def is_manual_pro(user: Optional[dict]) -> bool:
-    """True only for an active MANUAL iDEAL Pro grant (not Stripe, not basic)."""
+    """True only for an active MANUAL iDEAL Pro grant (not Stripe, not basic).
+
+    NOTE: Polar grants are tagged manual_plan_source="polar", NOT "ideal", so
+    they never match here — Polar manages its own expiry via webhooks and must
+    not be touched by this lazy-expiry path. The strict equality to
+    MANUAL_SOURCE_IDEAL is what keeps Polar (and Stripe) users safe.
+    """
     if not user:
         return False
     return (

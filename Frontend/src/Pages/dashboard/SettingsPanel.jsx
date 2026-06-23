@@ -5,7 +5,7 @@ import {
   fetchSubscription,
   fetchUsage, deleteAccount,
 } from "../../components/Billing";
-import IdealPanel from "../../components/IdealPanel";
+import PolarBillingPanel from "../../components/PolarBillingPanel";
 import { isAdminEmail } from "../../components/IdealAdminPanel";
 import FeedbackModal from "../../components/Feedbackmodal";
 import api from "../../components/api";
@@ -240,16 +240,16 @@ export default function SettingsPanel() {
                     unlimited refreshes, and more job matches.
                   </p>
 
-                  {/* Manual iDEAL payment panel (no-KvK interim). */}
-                  <IdealPanel />
+                  {/* Polar checkout (Merchant of Record) — upgrade CTA. */}
+                  <PolarBillingPanel />
                 </>
               )}
 
               {plan === "pro" && (
                 <>
-                  {/* IdealPanel shows the active-Pro status + contact note, and no
-                      request option while Pro is active. */}
-                  <IdealPanel />
+                  {/* PolarBillingPanel shows the active-Pro status when on Pro,
+                      and the upgrade CTA otherwise. */}
+                  <PolarBillingPanel />
                 </>
               )}
 

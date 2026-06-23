@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from routes.resume import router as resume_router
 from routes.billing import router as billing_router   # NEW
 from routes.ideal_billing import router as ideal_router  # NEW: manual iDEAL (no-KvK interim)
+from routes.polar_billing import router as polar_router  # NEW: Polar (Merchant of Record)
 from routes.admin_metrics import router as admin_metrics_router  # NEW: read-only admin analytics
 from routes.presence import router as presence_router  # NEW: visitor tracking
 from batch.batch_routes import router as batch_router  # NEW: enterprise batch jobs
@@ -32,6 +33,7 @@ app.include_router(resume_router)
 app.include_router(auth_router,    prefix="/auth")
 app.include_router(billing_router, prefix="/billing")   # NEW
 app.include_router(ideal_router,   prefix="/ideal")     # NEW: manual iDEAL (no-KvK interim)
+app.include_router(polar_router,   prefix="/polar")     # NEW: Polar (Merchant of Record) — primary checkout
 app.include_router(admin_metrics_router, prefix="/ideal")  # NEW: GET /ideal/admin/metrics (read-only)
 app.include_router(presence_router, prefix="/presence")  # NEW: visitor tracking
 app.include_router(batch_router)  # NEW: enterprise batch jobs (prefix /batch in router)

@@ -134,6 +134,26 @@ class MongoDB:
             {"$set": {"stripe_customer_id": customer_id}},
         )
 
+    # ── Polar (NEW, additive) ──────────────────────────────────────────────────
+    # Mirror of the two Stripe helpers above, for the Polar webhook to resolve a
+    # user by their Polar customer id. Completely independent of Stripe/iDEAL —
+    # writes a separate `polar_customer_id` field and never touches the others.
+
+    def get_user_by_polar_customer(self, customer_id: str) -> dict | None:
+        """Used by the Polar webhook to map an event back to our user."""
+        if not customer_id:
+            return None
+        return self.users.find_one({"polar_customer_id": customer_id}, {"_id": 0})
+
+    def set_polar_customer_id(self, email: str, customer_id: str):
+        """Persist the Polar customer id the first time we see one."""
+        if not customer_id:
+            return
+        self.users.update_one(
+            {"email": email},
+            {"$set": {"polar_customer_id": customer_id}},
+        )
+
     def update_user_subscription(
         self,
         email: str,
