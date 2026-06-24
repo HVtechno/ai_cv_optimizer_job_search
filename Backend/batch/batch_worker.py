@@ -137,6 +137,16 @@ async def _score_resume(db, resume_doc: dict, filters: dict | None = None,
                     "interview_probability":   res["interview_probability"],
                     "missing_keywords":        res["missing_keywords"][:10],
                     "missing_skills":          res["missing_skills"][:10],
+                    # NEW — surfaced in the batch "Analysis" popover (strong/weak/gaps).
+                    # Purely additive: existing rows/CSV ignore these extra keys.
+                    "matched_keywords":        res.get("matched_keywords", [])[:10],
+                    "strong_skills":           res.get("strong_skills", [])[:10],
+                    "weak_skills":             res.get("weak_skills", [])[:10],
+                    # NEW — kept so the Align action can bridge this exact job into the
+                    # resume's dashboard job_matches (the shape optimize_resume expects).
+                    # Not shown in the table; stripped of the heavy embedding vector.
+                    "_job":  {k: v for k, v in job.items() if k != "embedding_chunks"},
+                    "_ats":  res,
                 }
             except Exception as e:
                 print(f"[batch] score error job={job.get('job_id')}: {e}")
@@ -183,10 +193,70 @@ async def run_batch(store, batch: dict) -> str:
         )
         try:
             matches = await _score_resume(db, resume_doc, filters, max_jobs)
-            store.save_result(batch_id, run_id, org_id, resume_id, matches,
+            # Bridge the scored jobs into the resume's dashboard job_matches so the
+            # existing optimize/cover/motivation endpoints (which look the job up in
+            # job_matches) accept an "Align" launched from a batch row. Purely
+            # additive: only jobs NOT already in job_matches are appended; existing
+            # dashboard matches are never removed or overwritten.
+            _bridge_into_job_matches(db, resume_doc, matches)
+            # The table/CSV only need the lightweight fields; drop the heavy private
+            # bridge payload (_job/_ats) before persisting the batch result so
+            # batch_results stays the same size/shape it always was.
+            clean = [{k: v for k, v in m.items() if k not in ("_job", "_ats")}
+                     for m in matches]
+            store.save_result(batch_id, run_id, org_id, resume_id, clean,
                               candidate=candidate)
         except Exception as e:
             # One bad resume must not kill the whole run; record + continue.
             store.save_result(batch_id, run_id, org_id, resume_id,
                               [{"error": str(e)}], candidate=candidate)
     return run_id
+
+
+def _bridge_into_job_matches(db, resume_doc: dict, matches: list) -> None:
+    """
+    Make batch-discovered jobs optimizable from the Batch panel's "Align" button.
+
+    optimize_resume() resolves a job via db.get_job_matches(resume_id) ->
+    get_selected_job(job_match, job_id). Batch results live in their own store, so
+    without this a job found only by a batch run would 404 on Align. We merge each
+    scored job into job_matches in the SAME shape the dashboard writes
+    ({"job": <job>, "ats": <ats>}), appending only ids that aren't already present.
+
+    Safety:
+      - additive only: existing dashboard results are preserved as-is.
+      - no-op on rows without the private _job/_ats payload (e.g. error rows).
+      - failures are swallowed: bridging is a convenience, never break a batch run.
+    """
+    try:
+        resume_id = resume_doc["resume_id"]
+        user_id   = resume_doc.get("user_id")
+        bridgeable = [m for m in matches if m.get("_job") and m.get("_ats")]
+        if not bridgeable:
+            return
+
+        existing = db.get_job_matches(resume_id) or {}
+        results  = list(existing.get("results", []))
+        have_ids = {
+            str((r.get("job") or {}).get("job_id")
+                or (r.get("job") or {}).get("id")
+                or (r.get("job") or {}).get("_id"))
+            for r in results
+        }
+
+        added = 0
+        for m in bridgeable:
+            jid = str(m["_job"].get("job_id") or m["_job"].get("id") or "")
+            if not jid or jid in have_ids:
+                continue
+            results.append({"job": m["_job"], "ats": m["_ats"], "_source": "batch"})
+            have_ids.add(jid)
+            added += 1
+
+        if added:
+            uid = user_id or existing.get("user_id") or ""
+            db.save_job_matches(resume_id, uid, results)
+            print(f"[batch] bridged {added} job(s) into job_matches "
+                  f"resume={resume_id[:8]} (align-enabled)")
+    except Exception as e:
+        print(f"[batch] job_matches bridge skipped: {e}")

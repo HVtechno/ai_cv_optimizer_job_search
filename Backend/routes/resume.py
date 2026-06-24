@@ -332,7 +332,11 @@ async def upload_resume(
         else:
             existing_name = existing.get("candidate_name") or None
         job_match   = db.get_job_matches(existing_id)
-        cached      = job_match.get("results", []) if job_match else []
+        # Exclude batch-bridged jobs (tagged _source="batch") from the dashboard
+        # response — they belong to the Batch panel's Align flow, not the
+        # dashboard the user searched. Keeps total_jobs + the list consistent.
+        cached      = [r for r in (job_match.get("results", []) if job_match else [])
+                       if r.get("_source") != "batch"]
         return {
             "resume_id":    existing_id,
             "file_name":    existing.get("file_name", file.filename),
@@ -591,6 +595,24 @@ async def refresh_resume_jobs(
     top_jobs      = filtered_jobs[:top_n_saved]
 
     results       = await _score_all_jobs(resume_text, resume_embedding, top_jobs)
+    # Preserve any batch-bridged jobs (tagged _source="batch") across this refresh.
+    # save_job_matches REPLACES the results array, which would otherwise drop the
+    # bridged entries the Batch panel's "Align" relies on. The dashboard already
+    # filters these out of its own view, so re-appending them is invisible there
+    # but keeps Align working without waiting for the next batch run.
+    prev = db.get_job_matches(resume_id)
+    if prev:
+        fresh_ids = {
+            str((r.get("job") or {}).get("job_id")
+                or (r.get("job") or {}).get("id") or "")
+            for r in results
+        }
+        for r in prev.get("results", []):
+            if r.get("_source") == "batch":
+                bid = str((r.get("job") or {}).get("job_id")
+                          or (r.get("job") or {}).get("id") or "")
+                if bid and bid not in fresh_ids:
+                    results.append(r)
     db.save_job_matches(resume_id, user_id, results)
 
     # Record usage AFTER a successful refresh. Free advances the monthly counter;
@@ -645,11 +667,17 @@ async def get_resume_jobs(resume_id: str, user_id: str = Depends(get_current_use
     job_match = db.get_job_matches(resume_id)
     if not job_match:
         raise HTTPException(status_code=404, detail="No job matches — please refresh")
+    # Hide jobs that were bridged in by a background batch run (tagged
+    # _source="batch"). Those exist in job_matches only so the Batch panel's
+    # "Align" can reuse the optimize endpoint — they are NOT dashboard results
+    # the user searched for, so the dashboard view excludes them.
+    dash_results = [r for r in job_match.get("results", [])
+                    if r.get("_source") != "batch"]
     return {
         "resume_id":      resume_id,
         "file_name":      resume.get("file_name"),
         "candidate_name": resume.get("candidate_name") or None,   # NEW
-        "results":        [normalize_result(r, i) for i, r in enumerate(job_match.get("results", []))],
+        "results":        [normalize_result(r, i) for i, r in enumerate(dash_results)],
         "uploaded_at":    resume.get("uploaded_at"),
     }
 

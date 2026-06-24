@@ -163,6 +163,7 @@ export default function Dashboard() {
       const sorted = [...res.data.results.map(normalizeJob)].sort((a, b) => b.match - a.match);
       setJobs(sorted);
       if (sorted.length > 0) setSelectedJob(sorted[0]);
+      else setSelectedJob(null);   // no matches → clear stale selection/gauge
     } catch (err) {
       console.error("Failed to fetch jobs", err);
     } finally {
@@ -229,6 +230,7 @@ export default function Dashboard() {
       setJobs(sorted);
       setPage(1);
       if (sorted.length > 0) setSelectedJob(sorted[0]);
+      else setSelectedJob(null);   // no matches → clear stale selection/gauge
       setLastRefreshedAt(res.data.refreshed_at || new Date().toISOString());
 
       // Keep page size in sync and store the applied filters back on the resume
@@ -428,7 +430,12 @@ export default function Dashboard() {
       const capped  = sorted.slice(0, topNValue); // enforce topN on frontend too
       setJobs(capped);
       setPage(1);
+      // FIX: when the new resume has NO matches, clear the selection too.
+      // Otherwise selectedJob still holds the PREVIOUS resume's job (and its
+      // `match` score), so hasAnalysis stays true and the ATS gauge shows a
+      // stale percentage even though the skill panels read as empty.
       if (capped.length > 0) setSelectedJob(capped[0]);
+      else setSelectedJob(null);
     } catch (err) {
       // Upload can hit the per-plan resume cap — show upgrade modal if so.
       const info = getUpgradeInfo(err);

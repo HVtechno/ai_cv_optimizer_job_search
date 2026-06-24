@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import api from "../components/api";
+import { useAuth } from "../context/AuthContext";
+import { isAdminEmail } from "../components/IdealAdminPanel";
+import AIApplicationModalPreview from "../components/AIApplicationModel";
 
 // Mirror ResumeFilterModal exactly so batch filters use values the backend's
 // geocoding/language logic actually recognizes.
@@ -65,6 +68,32 @@ export default function BatchPanel({ admin = false }) {
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [overview, setOverview] = useState(null);
+
+  // ── Role gate for the new Analysis / Align actions ──────────────────────
+  // Per requirement: admins, team (contributors) AND enterprise users may use
+  // Analysis + Align. The Batch tab itself is already restricted to exactly
+  // these roles in the Sidebar, so this is a belt-and-braces guard.
+  const { user, plan } = useAuth();
+  const [isContributor, setIsContributor] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    api.get("/team/check")
+      .then((r) => { if (alive) setIsContributor(Boolean(r.data?.is_contributor)); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [user?.sub]);
+  const canApply =
+    isAdminEmail(user?.sub) || isContributor || plan === "enterprise";
+  // Align opens the optimize modal for a specific resume's owner — that only
+  // makes sense in a user's OWN batch view. The admin "all orgs" view is
+  // read-only observation across other people's orgs, so Align is hidden there
+  // (Analysis stays — admins can still inspect strong/weak/gaps).
+  const showAlign = canApply && !admin;
+
+  // Analysis popover: which flattened row's strong/weak/gaps is open (null = none).
+  const [analysisRow, setAnalysisRow] = useState(null);
+  // Align modal: holds {job, activeResume} built from a batch row, or null.
+  const [alignTarget, setAlignTarget] = useState(null);
 
   // ── Admin-only operational metrics ──────────────────────────────────────
   const loadOverview = useCallback(async () => {
@@ -223,21 +252,46 @@ export default function BatchPanel({ admin = false }) {
   const scoreColor = (s) =>
     s >= 65 ? "#00e87a" : s >= 35 ? "#facc15" : "#f87171";
 
+  // Build the exact {job, activeResume} shape AIApplicationModalPreview reads
+  // (job.id, job.match, job.interview_probability, job.title/company/location/
+  // link/expiry/job_language; activeResume.id, activeResume.name) from a batch
+  // row, then open the same modal the Dashboard uses. The job was bridged into
+  // the resume's job_matches at batch time, so optimize/cover/motivation resolve.
+  const openAlign = (m) => {
+    if (!m || m.empty || !m.resume_id || !m.job_id) return;
+    setAlignTarget({
+      job: {
+        id:                    m.job_id,
+        title:                 m.title,
+        company:               m.company,
+        location:              m.location || "",
+        link:                  m.link || "",
+        match:                 m.score,
+        interview_probability: m.interview_probability,
+        expiry:                m.expiry || null,
+        job_language:          m.job_language || "English",
+      },
+      activeResume: { id: m.resume_id, name: m.candidate },
+    });
+  };
+
   // Flatten results into rows (one per candidate-job), keeping candidates with
   // zero matches visible so it's clear they were processed but matched nothing.
   const flatRows = () => {
     const rows = [];
     (results || []).forEach((r) => {
       const cand = r.candidate || r.resume_id;
+      const rid  = r.resume_id;
       const matches = r.matches || [];
       if (matches.length === 0 || (matches[0] && matches[0].error)) {
         rows.push({
-          candidate: cand, title: matches[0]?.error ? "(error)" : "(no matches)",
+          candidate: cand, resume_id: rid,
+          title: matches[0]?.error ? "(error)" : "(no matches)",
           company: "", score: "", interview_probability: "",
           missing_keywords: [], link: "", empty: true,
         });
       } else {
-        matches.forEach((m) => rows.push({ candidate: cand, ...m }));
+        matches.forEach((m) => rows.push({ candidate: cand, resume_id: rid, ...m }));
       }
     });
     return rows;
@@ -245,13 +299,21 @@ export default function BatchPanel({ admin = false }) {
 
   const downloadCsv = () => {
     const rows = flatRows();
-    const header = ["Candidate", "Job", "Company", "ATS", "Interview", "Top gaps", "Link"];
+    const header = ["Candidate", "Job", "Company", "ATS", "Interview",
+                    "Strong", "Weak", "Gaps", "Link"];
     const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
     const lines = [header.map(esc).join(",")];
     rows.forEach((r) => {
+      // Same grouping as the on-screen Analysis popover so the file matches it:
+      //   Strong = demonstrated skills + matched keywords
+      //   Weak   = partial skills
+      //   Gaps   = missing skills + missing keywords
+      const strong = [...(r.strong_skills || []), ...(r.matched_keywords || [])];
+      const weak   = [...(r.weak_skills || [])];
+      const gaps   = [...(r.missing_skills || []), ...(r.missing_keywords || [])];
       lines.push([
-        r.candidate, r.title, r.company, r.score,
-        r.interview_probability, (r.missing_keywords || []).join("; "), r.link,
+        r.candidate, r.title, r.company, r.score, r.interview_probability,
+        strong.join("; "), weak.join("; "), gaps.join("; "), r.link,
       ].map(esc).join(","));
     });
     const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
@@ -650,7 +712,8 @@ export default function BatchPanel({ admin = false }) {
                     <th className="py-2 px-3">Company</th>
                     <th className="py-2 px-3">ATS</th>
                     <th className="py-2 px-3">Interview</th>
-                    <th className="py-2 px-3">Top gaps</th>
+                    <th className="py-2 px-3">Analysis</th>
+                    {showAlign && <th className="py-2 px-3">Align</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -670,9 +733,26 @@ export default function BatchPanel({ admin = false }) {
                         {m.empty ? "—" : `${m.score}%`}
                       </td>
                       <td className="py-1.5 px-3">{m.interview_probability || "—"}</td>
-                      <td className="py-1.5 px-3 text-gray-400">
-                        {(m.missing_keywords || []).slice(0, 4).join(", ")}
+                      <td className="py-1.5 px-3">
+                        {m.empty ? <span className="text-gray-600">—</span> : (
+                          <button
+                            onClick={() => setAnalysisRow(m)}
+                            className="text-cyan-400 hover:underline">
+                            view
+                          </button>
+                        )}
                       </td>
+                      {showAlign && (
+                        <td className="py-1.5 px-3">
+                          {m.empty ? <span className="text-gray-600">—</span> : (
+                            <button
+                              onClick={() => openAlign(m)}
+                              className="text-emerald-400 hover:underline font-medium">
+                              align
+                            </button>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -709,6 +789,95 @@ export default function BatchPanel({ admin = false }) {
           </div>
           )}
         </div>
+      )}
+
+      {/* ── Analysis popover (strong / weak / gaps) ──────────────────────── */}
+      {analysisRow && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => setAnalysisRow(null)}>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-lg bg-gray-900 border border-gray-700 rounded-xl p-5 shadow-2xl max-h-[80vh] overflow-y-auto">
+            <div className="flex items-start justify-between mb-1">
+              <h3 className="text-sm font-semibold text-white pr-4">
+                {analysisRow.title}
+              </h3>
+              <button onClick={() => setAnalysisRow(null)}
+                className="text-gray-400 hover:text-white text-sm">✕</button>
+            </div>
+            <p className="text-[11px] text-gray-400 mb-4">
+              {analysisRow.candidate}
+              {analysisRow.company ? ` · ${analysisRow.company}` : ""}
+              {" · "}
+              <span style={{ color: scoreColor(analysisRow.score) }}>
+                ATS {analysisRow.score}%
+              </span>
+            </p>
+
+            {(() => {
+              const Block = ({ label, items, color }) => (
+                <div className="mb-4">
+                  <p className="text-[11px] font-semibold mb-1" style={{ color }}>
+                    {label}
+                  </p>
+                  {(items && items.length) ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {items.map((x, i) => (
+                        <span key={i}
+                          className="text-[11px] px-2 py-0.5 rounded-full bg-gray-800 text-gray-200">
+                          {x}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-gray-600 italic">None</p>
+                  )}
+                </div>
+              );
+              // "Strong" = skills demonstrated + keywords matched.
+              const strong = [
+                ...(analysisRow.strong_skills || []),
+                ...(analysisRow.matched_keywords || []),
+              ];
+              return (
+                <>
+                  <Block label="STRONG (demonstrated)" items={strong} color="#00e87a" />
+                  <Block label="WEAK (partial / needs emphasis)"
+                    items={analysisRow.weak_skills} color="#facc15" />
+                  <Block label="GAPS (missing skills & keywords)"
+                    items={[
+                      ...(analysisRow.missing_skills || []),
+                      ...(analysisRow.missing_keywords || []),
+                    ]}
+                    color="#f87171" />
+                </>
+              );
+            })()}
+
+            {showAlign && !analysisRow.empty && (
+              <button
+                onClick={() => { const r = analysisRow; setAnalysisRow(null); openAlign(r); }}
+                className="mt-2 w-full text-xs px-3 py-2 rounded font-semibold"
+                style={{ background: "linear-gradient(135deg,#00e87a,#00c9ff)", color: "#0a0f0d" }}>
+                Align this resume →
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Align modal — same component the Dashboard uses ───────────────── */}
+      {showAlign && alignTarget && (
+        <AIApplicationModalPreview
+          isOpen={Boolean(alignTarget)}
+          onClose={() => setAlignTarget(null)}
+          job={alignTarget.job}
+          activeResume={alignTarget.activeResume}
+          onUpgradeRequired={() => {}}
+          allowRegenerate={false}
+          onOptimized={() => {}}
+        />
       )}
     </div>
   );
